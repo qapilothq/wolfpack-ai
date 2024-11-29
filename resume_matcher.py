@@ -122,6 +122,37 @@ def extract_job_requirements(job_desc, client=None):
         logging.error(f"Response: {response}")
         return None
 
+def generate_role_questions(job_desc, client=None):
+    prompt = f"""
+    You are an experienced recruiter in the tech industry. 
+    You need to assess candidates based on the role, specified by the job description below. 
+    This assessment is for initial screening only, not technical interview. 
+    The questions should be based on the industry standard of identifying the basic knowledge about the technology and experience as specified by the job description.
+
+    Job Description:
+    {job_desc}
+
+    Generate the questions to evaluate a candidate. Limit the number of questions to 5. Give me just the questions in a list, no need to categorize them.
+    Follow the below JSON format - 
+
+    {{"questions": [list of strings]}}
+
+    Only output valid JSON. 
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    """
+    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    try:
+        if isinstance(response, dict):
+            role_questions = response
+        else:
+            role_questions = json.loads(response)
+        return role_questions
+    except json.JSONDecodeError as e:
+        error_message = f"Error generating job specific questions: {str(e)}"
+        logging.error(error_message)
+        logging.error(f"Response: {response}")
+        raise HTTPException(status_code=500, detail=error_message)
+    
 def rank_job_description(job_desc, client=None):
     criteria = [
         {
@@ -306,6 +337,53 @@ Please provide an improved version of the job description that addresses the imp
         return None
 
 #resume functions
+def generate_candidate_questions(job_desc, resume_url, client=None):
+    
+    try:
+        extracted_data = extract_text_and_image_from_pdf(resume_url)
+        unified_resume, resume_images = unify_format(extracted_data, font_styles=constants.FONT_PRESETS, generate_pdf=False)
+        
+        if not unified_resume:
+            return {"status": "failed", "message": "Failure to unify the resume format"}
+    except Exception as e:
+        return {"status": "failed", "message": "Exception occured while extracting data from resume - " + str(e)}
+    
+    prompt = f"""
+    You are an experienced recruiter in the tech industry. You need to assess candidates based on the role, specified by the job description below. 
+    This assessment is for initial screening only, not technical interview. The questions should be based on the industry standard of identifying the basic knowledge about the technology and experience as specified by the job description and the resume of the candidate. The questions should be tailored to the candidate customised to their 
+    1. previous work experience
+    2. projects worked on
+    3. the technical skills that the candidate has mentioned in the resume
+    4. courses done by the candidate
+    5. proficiency in language claimed
+
+    Job Description:
+    {job_desc}
+
+    Resume:
+    {unified_resume}
+
+    Generate the questions to evaluate a candidate. Limit the number of questions to 10. Give me just the questions in a list, no need to categorize them.
+    Follow the below JSON format - 
+
+    {{"questions": [list of strings]}}
+
+    Only output valid JSON. 
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    """
+    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    try:
+        if isinstance(response, dict):
+            role_questions = response
+        else:
+            role_questions = json.loads(response)
+        return role_questions
+    except json.JSONDecodeError as e:
+        error_message = f"Error generating job specific questions: {str(e)}"
+        logging.error(error_message)
+        logging.error(f"Response: {response}")
+        raise HTTPException(status_code=500, detail=error_message)
+    
 def extract_candidate_profile(resume_text, client=None):
     prompt = f"""
     Analyze the resume and provide the following key information and if any information not available  mark as “NA”

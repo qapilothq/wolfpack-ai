@@ -35,6 +35,15 @@ async def extract_job_requirements(jd: JD):
     job_requirements = resume_matcher.extract_job_requirements(jd.jd)
     return job_requirements
 
+@app.post("/generate_role_questions")
+async def generate_role_questions(jd: JD):
+    job_requirements = resume_matcher.generate_role_questions(jd.jd)
+    return job_requirements
+
+@app.post("/generate_candidate_questions")
+async def generate_candidate_questions(resumeJobMatch: ResumeJobMatch):
+    job_requirements = resume_matcher.generate_candidate_questions(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url)
+    return job_requirements
 
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=5050)
