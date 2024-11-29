@@ -676,11 +676,11 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
 
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
 
-    website = extract_website_info(resume_text, client)
+    # website = extract_website_info(resume_text, client)
 
-    email_response = generate_email_response(final_score, client)
+    # email_response = generate_email_response(final_score, client)
     
-    return {'score': final_score, 'match_reasons': match_reasons, 'website': website, 'red_flags': red_flags, 'email_response': email_response}
+    return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
 
 def generate_match_reasons(resume_text, job_requirements, client=None):
 
