@@ -15,7 +15,11 @@ def get_linkedin_education(linkedin_education):
         education = ""
         if len(linkedin_education) > 0:
             latest_education = linkedin_education[0]
-            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} at {latest_education.get("schoolName")} with {latest_education.get("grade")} : {latest_education.get("start").get("year")} - {"" if int(latest_education.get("end").get("year"))<=0 else latest_education.get("end").get("year")}"
+            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} at {latest_education.get("schoolName")} with {latest_education.get("grade")} : {latest_education.get("start").get("year")} - "
+            if int(latest_education.get("end").get("year")) > 0:
+                education = education + latest_education.get("end").get("year")
+            else:
+                education = education + "now"
         return education.strip()
     except Exception as e:
         return ""
