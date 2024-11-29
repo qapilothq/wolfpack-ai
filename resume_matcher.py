@@ -6,6 +6,7 @@ from PIL import Image
 from fastapi import HTTPException
 from pathlib import Path
 from llm import *
+from utils import *
 # Initialize logging with more detailed format
 logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -27,6 +28,54 @@ def is_local_file(url):
     if url_parsed.scheme in ('file', ''): # Possibly a local file
         return exists(url_parsed.path)
     return False
+
+def get_linkedin_data(linkedin_profile_name):
+
+    try:
+        url = f"https://linkedin-data-api.p.rapidapi.com/?username={linkedin_profile_name}"
+
+        payload = ""
+        headers = {
+        'Accept': 'application/json',
+        'Content-Type': 'null',
+        'x-rapidapi-ua': 'RapidAPI-Playground',
+        'x-rapidapi-key': '93e4c0dc6dmsh0f0fb46be53c215p148f89jsn04aa17957232',
+        'x-rapidapi-host': 'linkedin-data-api.p.rapidapi.com',
+        'specificMethodHeaders': '[object Object]'
+        }
+
+        response = requests.request("GET", url, headers=headers, data=payload)
+        return response.json()
+    except Exception as e:
+        error_message = f"Error getting LinkedIn profile data from API for {linkedin_profile_name}: {str(e)}"
+        logging.error(error_message)
+        return None
+    
+def extract_linkedin_data(linkedin_url):
+
+    try:
+        linkedin_profile_name = linkedin_url.split("/")[-1]
+        linkedin_profile_data = get_linkedin_data(linkedin_profile_name)
+        candidate_linkedin_data = {
+            "username": linkedin_profile_data.get("username", ""),
+            "firstName": linkedin_profile_data.get("firstName", ""),
+            "lastName": linkedin_profile_data.get("lastName", ""),
+            "isOpenToWork": linkedin_profile_data.get("isOpenToWork", ""),
+            "summary": linkedin_profile_data.get("summary", ""),
+            "headline": linkedin_profile_data.get("headline", ""),
+            "location": get_linkedin_location(linkedin_profile_data.get("geo", "")),
+            "education": get_linkedin_education(linkedin_profile_data.get("educations", "")),
+            "positions": get_linkedin_positions(linkedin_profile_data.get("fullPositions", "")),
+            "courses": get_linkedin_courses(linkedin_profile_data.get("courses", "")),
+            "skills": get_linkedin_skills(linkedin_profile_data.get("skills", "")),
+            "honors": get_linkedin_honors(linkedin_profile_data.get("honors", "")),
+            "certifications": get_linkedin_certifications(linkedin_profile_data.get("certifications", ""))
+        }
+        return candidate_linkedin_data
+    except Exception as e:
+        error_message = f"Error getting LinkedIn profile name from url for {linkedin_url}: {str(e)}"
+        logging.error(error_message)
+        return None
 
 def extract_text_and_image_from_pdf(url):
     
@@ -429,6 +478,9 @@ def extract_candidate_profile(resume_text, client=None):
             candidate_profile = response
         else:
             candidate_profile = json.loads(response)
+
+        if "Personal Information" in candidate_profile and "linkedin" in candidate_profile.get("Personal Information"):
+            candidate_profile["linkedin"] = extract_linkedin_data(candidate_profile.get("Personal Information").get("linkedin"))
         return candidate_profile
     except json.JSONDecodeError as e:
         logging.error(f"Error parsing job requirements: {str(e)}")
