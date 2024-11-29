@@ -15,7 +15,7 @@ def get_linkedin_education(linkedin_education):
         education = ""
         if len(linkedin_education) > 0:
             latest_education = linkedin_education[0]
-            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} at {latest_education.get("schoolName")} with {latest_education.get("grade")} grade"
+            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} from {latest_education.get("schoolName")}"
         return education.strip()
     except Exception as e:
         return ""
