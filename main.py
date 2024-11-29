@@ -11,6 +11,9 @@ app = FastAPI()
 class ResumeJobMatch(BaseModel):
     resume_url: str
     jd: str
+class Assessment(BaseModel):
+    question: str
+    answer: str
 
 class Resume(BaseModel):
     url: str
@@ -18,6 +21,10 @@ class Resume(BaseModel):
 class JD(BaseModel):
     jd: str
 
+@app.post("/evaluate_candidate_answer")
+async def evaluate_candidate_answer(assessment: Assessment):
+    answer_score = resume_matcher.evaluate_candidate_answer(question=assessment.question, answer=assessment.answer)
+    return answer_score
 
 @app.post("/match_resume_to_job")
 async def match_resume_to_job(resumeJobMatch: ResumeJobMatch):

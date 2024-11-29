@@ -631,6 +631,63 @@ def extract_website_info(resume_text, client=None):
 
     return website
 
+def evaluate_candidate_answer(question, answer, client=None):
+    prompt = f"""
+    You are an experienced hiring manager with 10 years of experience in tech. 
+    You are screening the candidates to interview for your organisation. 
+    The candidates have been given a list of questions to answer, and they have shared back their responses. 
+    All these are subjective questions where it is difficult to say if the answer is absolutely right or wrong. 
+    It is your work to check the answers and rate them based on the below metrics.
+
+    metrics - 
+
+    1. relevance - relevance of the answer to the question
+    2. specificity - specificity of the answer i.e. if the given answer has specific examples or not
+    3. consistency - consistency of the language and tone
+    4. decision_making_clarity - showcase of decision making ability and clarity in providing reasoning
+    5. specific_metrics - mention of the specific metrics for reasoning if required for the answer
+    6. simplicity - simplicity of the language i.e. is the language simple to understand or is there use of too much jargon
+    7. relevance_to_experience - is the answer expected from the candidate based on their years of experience
+    8. relevance_to_skills - relevance of the answer to the job profile or technical skills
+
+
+    question - 
+    {question}
+
+    answer - 
+    {answer}
+
+    Provide your evaluation as an integer score from 0 to 10, where 0 is the lowest and 10 is the highest for each metric  and one integer for overall score in a JSON format given below
+    Only return the integer score, nothing else for each score.
+
+    JSON format - 
+    {{
+        "relevance": int,
+        "specificity": int,
+        "consistency": int,
+        "decision_making_clarity": int,
+        "specific_metrics": int,
+        "simplicity": int,
+        "relevance_to_experience": int,
+        "relevance_to_skills": int,
+        "overall_score": int
+    }}
+
+    Only output valid JSON. 
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    """
+    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    try:
+        if isinstance(response, dict):
+            answer_score = response
+        else:
+            answer_score = json.loads(response)
+        return answer_score
+    except json.JSONDecodeError as e:
+        logging.error(f"Error evaluating candidate answer : {str(e)}")
+        logging.error(f"Response: {response}")
+        return None
+
 #match functions
 def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     # Extract job requirements and wait for completion
