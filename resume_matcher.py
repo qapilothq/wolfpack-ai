@@ -64,7 +64,7 @@ def extract_linkedin_data(linkedin_url):
             "summary": linkedin_profile_data.get("summary", ""),
             "headline": linkedin_profile_data.get("headline", ""),
             "location": get_linkedin_location(linkedin_profile_data.get("geo", "")),
-            # "education": get_linkedin_education(linkedin_profile_data.get("educations", "")),
+            "education": get_linkedin_education(linkedin_profile_data.get("educations", "")),
             "positions": get_linkedin_positions(linkedin_profile_data.get("fullPositions", "")),
             "courses": get_linkedin_courses(linkedin_profile_data.get("courses", "")),
             "skills": get_linkedin_skills(linkedin_profile_data.get("skills", "")),
