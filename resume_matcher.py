@@ -74,7 +74,7 @@ def extract_text_and_image_from_pdf(url):
         return text.strip(), images
 
     except Exception as e:
-        logging.error(f"Error extracting text and image from PDF {file_path}: {str(e)}")
+        logging.error(f"Error extracting text and image from PDF {url}: {str(e)}")
         return "", []
 
 #job description functions
