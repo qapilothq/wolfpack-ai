@@ -74,11 +74,11 @@ def extract_text_and_image_from_pdf(url):
         if text.strip():
             return text.strip(), images
         else:
-            raise Exception(status_code=500, detail="No data found in resume file")
+            raise HTTPException(status_code=404, detail="No data found in resume file")
 
     except Exception as e:
         logging.error(f"Error extracting text and image from PDF {url}: {str(e)}")
-        raise Exception(status_code=500, detail="Failed to parse resume")
+        raise HTTPException(status_code=500, detail="Failed to parse resume")
         # return "", []
 
 #job description functions
