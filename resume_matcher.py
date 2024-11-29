@@ -38,6 +38,8 @@ def extract_text_and_image_from_pdf(url):
             if response.status_code != 200:
                 raise HTTPException(status_code=400, detail="Failed to download PDF")
             
+            if not os.path.exists("./src"):
+                os.makedirs("./src")
             file_path = "./src/temp.pdf"
             with open(file_path, "wb") as f:
                 f.write(response.content)
@@ -77,8 +79,9 @@ def extract_text_and_image_from_pdf(url):
             raise HTTPException(status_code=404, detail="No data found in resume file")
 
     except Exception as e:
-        logging.error(f"Error extracting text and image from PDF {url}: {str(e)}")
-        raise HTTPException(status_code=500, detail="Failed to parse resume")
+        error_message = f"Error extracting text and image from PDF {url}: {str(e)}"
+        logging.error(error_message)
+        raise HTTPException(status_code=500, detail=error_message)
         # return "", []
 
 #job description functions
