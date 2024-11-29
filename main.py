@@ -16,7 +16,7 @@ class Resume(BaseModel):
     url: str
 
 class JD(BaseModel):
-    jd_text: str
+    jd: str
 
 
 @app.post("/match_resume_to_job")
@@ -32,7 +32,7 @@ async def extract_candidate_profile(resume: Resume):
 
 @app.post("/extract_job_requirements")
 async def extract_job_requirements(jd: JD):
-    job_requirements = resume_matcher.extract_job_requirements(jd.jd_text)
+    job_requirements = resume_matcher.extract_job_requirements(jd.jd)
     return job_requirements
 
 
