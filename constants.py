@@ -12,3 +12,13 @@ FONT_PRESETS = {
     'serif': "Times-Roman, Times-Bold, Times-Italic, Times-BoldItalic, serif",
     'mono': "Courier, Courier-Bold, Courier-Oblique, Courier-BoldOblique, monospace"
 }
+
+EMPHASIS = {
+    "technical_skills_weight": 40,
+    "soft_skills_weight": 15,
+    "experience_weight": 10,
+    "education_weight": 5,
+    "language_proficiency_weight": 15,
+    "certifications_weight": 5,
+    "location_weight": 10
+}

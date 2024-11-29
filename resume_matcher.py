@@ -71,11 +71,15 @@ def extract_text_and_image_from_pdf(url):
         # if not images:
         #     logging.error(f"No images found in PDF {file_path}")
 
-        return text.strip(), images
+        if text.strip():
+            return text.strip(), images
+        else:
+            raise Exception(status_code=500, detail="No data found in resume file")
 
     except Exception as e:
         logging.error(f"Error extracting text and image from PDF {url}: {str(e)}")
-        return "", []
+        raise Exception(status_code=500, detail="Failed to parse resume")
+        # return "", []
 
 #job description functions
 def extract_job_requirements(job_desc, client=None):
@@ -97,14 +101,6 @@ def extract_job_requirements(job_desc, client=None):
       "location": {{
         "country": string,
         "city": string
-      }},
-      "emphasis": {{
-        "technical_skills_weight": integer,
-        "soft_skills_weight": integer,
-        "experience_weight": integer,
-        "education_weight": integer,
-        "language_proficiency_weight": integer,
-        "certifications_weight": integer
       }}
     }}
 
@@ -512,16 +508,16 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         sys.exit(1)  # Exit the script with an error code
 
     # Check if job_requirements contains expected keys
-    if 'emphasis' not in job_requirements:
-        logging.error("Job requirements missing 'emphasis' key")
-        # print(colored("Error: Invalid job requirements format. Exiting program.", 'red'))
-        sys.exit(1)  # Exit the script with an error code
+    # if 'emphasis' not in job_requirements:
+    #     logging.error("Job requirements missing 'emphasis' key")
+    #     # print(colored("Error: Invalid job requirements format. Exiting program.", 'red'))
+    #     sys.exit(1)  # Exit the script with an error code
 
     criteria = [
         {
             'name': 'Language Proficiency',
             'key': 'language_proficiency',
-            'weight': job_requirements['emphasis'].get('language_proficiency_weight', 5),
+            'weight': EMPHASIS.get('language_proficiency_weight', 15),
             'description': 'Assign points based on the candidate\'s proficiency in languages relevant to the job.',
             'factors': [
                 'Proficiency in required languages',
@@ -531,7 +527,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Education Level',
             'key': 'education_level',
-            'weight': job_requirements['emphasis'].get('education_weight', 10),
+            'weight': EMPHASIS.get('education_weight', 5),
             'description': 'Assign points based on the candidate\'s highest level of education or equivalent experience.',
             'factors': [
                 'Highest education level attained',
@@ -542,7 +538,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Years of Experience',
             'key': 'experience_years',
-            'weight': job_requirements['emphasis'].get('experience_weight', 20),
+            'weight': EMPHASIS.get('experience_weight', 10),
             'description': 'Assign points based on the relevance and quality of experience.',
             'factors': [
                 'Total years of relevant experience',
@@ -553,7 +549,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Technical Skills',
             'key': 'technical_skills',
-            'weight': job_requirements['emphasis'].get('technical_skills_weight', 50),
+            'weight': EMPHASIS.get('technical_skills_weight', 40),
             'description': 'Assign points for each required and optional skill, considering proficiency level.',
             'factors': [
                 'Proficiency in required technical skills',
@@ -565,7 +561,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Certifications',
             'key': 'certifications',
-            'weight': job_requirements['emphasis'].get('certifications_weight', 5),
+            'weight': EMPHASIS.get('certifications_weight', 5),
             'description': 'Assign points for each relevant certification.',
             'factors': [
                 'Possession of preferred certifications',
@@ -576,7 +572,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Soft Skills',
             'key': 'soft_skills',
-            'weight': job_requirements['emphasis'].get('soft_skills_weight', 9),
+            'weight': EMPHASIS.get('soft_skills_weight', 15),
             'description': 'Assign points for each soft skill demonstrated through examples or achievements.',
             'factors': [
                 'Demonstrated soft skills in resume',
@@ -586,7 +582,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         {
             'name': 'Location',
             'key': 'location',
-            'weight': job_requirements['emphasis'].get('location_weight', 50),
+            'weight': EMPHASIS.get('location_weight', 10),
             'description': 'Assign points based on the candidate\'s location relative to the job requirements.',
             'factors': [
                 'Country match with job location',
