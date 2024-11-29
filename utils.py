@@ -15,11 +15,7 @@ def get_linkedin_education(linkedin_education):
         education = ""
         if len(linkedin_education) > 0:
             latest_education = linkedin_education[0]
-            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} at {latest_education.get("schoolName")} with {latest_education.get("grade")} : {latest_education.get("start").get("year")} - "
-            if int(latest_education.get("end").get("year")) > 0:
-                education = education + latest_education.get("end").get("year")
-            else:
-                education = education + "now"
+            education = f"{latest_education.get("degree")} in {latest_education.get("fieldOfStudy")} at {latest_education.get("schoolName")} with {latest_education.get("grade")} grade"
         return education.strip()
     except Exception as e:
         return ""
@@ -31,7 +27,7 @@ def get_linkedin_positions(linkedin_positions):
             for position in linkedin_positions:
                 position_text = f"{position.get("title")} at {position.get("companyName")}, {position.get("location")} from {position.get("start").get("year")}"
                 position_end_year = position.get("end").get("year")
-                if position_end_year >= 0:
+                if position_end_year > 0:
                     position_text = position_text + f" to {position_end_year} | "
                 else :
                     position_text = position_text + f" to now | "

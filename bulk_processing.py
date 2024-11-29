@@ -3,7 +3,7 @@ import json5, requests, os, logging, json
 from multiprocessing import Pool, cpu_count
 from tqdm import tqdm
 from bs4 import BeautifulSoup
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def worker(args):
     file, job_desc, font_styles, generate_pdf = args

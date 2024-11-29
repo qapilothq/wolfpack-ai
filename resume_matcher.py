@@ -8,7 +8,7 @@ from pathlib import Path
 from llm import *
 from utils import *
 # Initialize logging with more detailed format
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 
 #1 is the biggest redflag - they have high weightage but low score

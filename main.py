@@ -4,7 +4,7 @@ from pydantic import BaseModel
 import uvicorn
 import resume_matcher
 import logging
-logging.basicConfig(level=logging.CRITICAL, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = FastAPI()
 
