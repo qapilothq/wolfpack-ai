@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 clients = {
-    "anthropic": anthropic.Anthropic(api_key=os.getenv("CLAUDE_API_KEY")),
+    "anthropic": anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY")),
     "openai": openai.OpenAI(api_key=os.getenv('OPENAI_API_KEY'))
 }
 

@@ -3,7 +3,7 @@ from typing import List, Union
 from enum import Enum
 import os, logging, base64
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
+# from langchain_anthropic import ChatAnthropic
 from langsmith import traceable
 from constants import *
 from dotenv import load_dotenv
@@ -12,9 +12,9 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 
 clients = {
-    "anthropic":ChatAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), 
-                               model_name=os.getenv("ANTHROPIC_MODEL"), 
-                               temperature=0, max_tokens=DEFAULT_MAX_TOKENS),
+    # "anthropic":ChatAnthropic(api_key=os.getenv("ANTHROPIC_API_KEY"), 
+    #                            model_name=os.getenv("ANTHROPIC_MODEL"), 
+    #                            temperature=0, max_tokens=DEFAULT_MAX_TOKENS),
     "openai": ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'), 
                          model_name=os.getenv("OPENAI_MODEL"), 
                          temperature=0, max_tokens=DEFAULT_MAX_TOKENS),
@@ -89,50 +89,50 @@ def talk_to_ai(prompt,
     global chosen_api
     chosen_api = "openai"
     try:
-        if chosen_api == "anthropic":
-            response = talk_to_anthropic(prompt, max_tokens, image_data, client)
-        elif chosen_api == "openai":
+        if chosen_api == "openai":
             response = talk_to_openai(prompt, max_tokens, image_data, client)
         elif chosen_api == "fastopenai":
             response = talk_fast()
+        # elif chosen_api == "anthropic":
+        #     response = talk_to_anthropic(prompt, max_tokens, image_data, client)
         return response.strip() if response else ""
     except Exception as e:
         logging.error(f"Error in talk_to_ai: {str(e)}")
         return ""
 
-@traceable
-def talk_to_anthropic(prompt,
-                      max_tokens=DEFAULT_MAX_TOKENS,
-                      image_data=None,
-                      client=None):
-    if client is None:
-        client = clients['anthropic']
+# @traceable
+# def talk_to_anthropic(prompt,
+#                       max_tokens=DEFAULT_MAX_TOKENS,
+#                       image_data=None,
+#                       client=None):
+#     if client is None:
+#         client = clients['anthropic']
 
-    messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
+#     messages = [{"role": "user", "content": [{"type": "text", "text": prompt}]}]
 
-    if image_data:
-        for img in image_data:
-            base64_image = base64.b64encode(img).decode('utf-8')
-            messages[0]["content"].append({
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": "image/jpeg",
-                    "data": base64_image
-                }
-            })
+#     if image_data:
+#         for img in image_data:
+#             base64_image = base64.b64encode(img).decode('utf-8')
+#             messages[0]["content"].append({
+#                 "type": "image",
+#                 "source": {
+#                     "type": "base64",
+#                     "media_type": "image/jpeg",
+#                     "data": base64_image
+#                 }
+#             })
 
-    try:
-        # response = client.messages.create(
-        #     model=ANTHROPIC_MODEL,  # Use model from environment variable
-        #     max_tokens=max_tokens,
-        #     messages=messages
-        # )
-        response = client.invoke(input=messages)
-        return response.content[0].strip()
-    except Exception as e:
-        logging.error(f"Error in Anthropic AI communication: {str(e)}")
-        return ""
+#     try:
+#         # response = client.messages.create(
+#         #     model=ANTHROPIC_MODEL,  # Use model from environment variable
+#         #     max_tokens=max_tokens,
+#         #     messages=messages
+#         # )
+#         response = client.invoke(input=messages)
+#         return response.content[0].strip()
+#     except Exception as e:
+#         logging.error(f"Error in Anthropic AI communication: {str(e)}")
+#         return ""
 
 @traceable
 def talk_to_openai(prompt,
