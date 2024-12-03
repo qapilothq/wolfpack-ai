@@ -5,8 +5,9 @@ from pathlib import Path
 from PIL import Image
 from fastapi import HTTPException
 from pathlib import Path
-from llm import *
+from langchain_llm import *
 from utils import *
+from langsmith import traceable
 # Initialize logging with more detailed format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -134,6 +135,7 @@ def extract_text_and_image_from_pdf(url):
         # return "", []
 
 #job description functions
+@traceable
 def extract_job_requirements(job_desc, client=None):
     prompt = f"""
     Extract the key requirements from the following job description.
@@ -171,6 +173,7 @@ def extract_job_requirements(job_desc, client=None):
         logging.error(f"Response: {response}")
         return None
 
+@traceable
 def generate_role_questions(job_desc, client=None):
     prompt = f"""
     You are an experienced recruiter in the tech industry. 
@@ -202,6 +205,7 @@ def generate_role_questions(job_desc, client=None):
         logging.error(f"Response: {response}")
         raise HTTPException(status_code=500, detail=error_message)
     
+@traceable
 def rank_job_description(job_desc, client=None):
     criteria = [
         {
@@ -365,6 +369,7 @@ def rank_job_description(job_desc, client=None):
 
     return result
 
+@traceable
 def improve_job_description(job_desc, ranking, client=None):
     prompt = f"""
 As a hiring consultant, improve the following job description based on the ranking and improvement tips provided. Maintain the overall structure and key information while addressing the areas for improvement.
@@ -386,6 +391,7 @@ Please provide an improved version of the job description that addresses the imp
         return None
 
 #resume functions
+@traceable
 def generate_candidate_questions(job_desc, resume_url, client=None):
     
     try:
@@ -432,7 +438,8 @@ def generate_candidate_questions(job_desc, resume_url, client=None):
         logging.error(error_message)
         logging.error(f"Response: {response}")
         raise HTTPException(status_code=500, detail=error_message)
-    
+
+@traceable
 def extract_candidate_profile(resume_text, client=None):
     prompt = f"""
     Analyze the resume and provide the following key information and if any information not available  mark as “NA”
@@ -487,6 +494,7 @@ def extract_candidate_profile(resume_text, client=None):
         logging.error(f"Response: {response}")
         return {}
 
+@traceable
 def assess_resume_quality(resume_images, client=None):
     # Ensure resume_images is a list of base64 encoded strings
     if not isinstance(resume_images, list) or not resume_images:
@@ -609,6 +617,7 @@ def assess_resume_quality(resume_images, client=None):
 
     return overall_score
 
+@traceable
 def extract_website_info(resume_text, client=None):
     # Extract website from resume (simple extraction)
     website = ''
@@ -631,6 +640,7 @@ def extract_website_info(resume_text, client=None):
 
     return website
 
+@traceable
 def evaluate_candidate_answer(question, answer, client=None):
     prompt = f"""
     You are an experienced hiring manager with 10 years of experience in tech. 
@@ -689,6 +699,7 @@ def evaluate_candidate_answer(question, answer, client=None):
         return None
 
 #match functions
+@traceable
 def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     # Extract job requirements and wait for completion
     job_requirements = extract_job_requirements(job_desc, client)
@@ -868,6 +879,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     
     return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
 
+@traceable
 def generate_match_reasons(resume_text, job_requirements, client=None):
 
     # Generate match reasons
@@ -923,6 +935,7 @@ def generate_email_response(final_score, client=None):
 
     return email_response
 
+@traceable
 def unify_format(extracted_data, font_styles, generate_pdf=False):
     resume_text, resume_images = extracted_data
     
@@ -1189,10 +1202,12 @@ You can only speak in clean, concise, Markdown format.
     
     return unified_resume, resume_images
 
+@traceable
 def unify_single_resume(file, font_styles, generate_pdf):
     extracted_data = extract_text_and_image_from_pdf(file)
     return unify_format(extracted_data, font_styles, generate_pdf)
 
+@traceable
 def match_single_resume(job_desc, file, unified_resume, resume_images):
     if not unified_resume:
         return {"status": "failed", "message": "Failure to unify the resume format"}
@@ -1200,6 +1215,7 @@ def match_single_resume(job_desc, file, unified_resume, resume_images):
     result = match_resume_to_job(unified_resume, job_desc, resume_images)
     return result
 
+@traceable
 def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False):
     
     try:
@@ -1215,6 +1231,7 @@ def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESE
         return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 #analysis function
+@traceable
 def analyze_overall_matches(job_desc, results):
     # Prepare data for analysis
     match_data = []
