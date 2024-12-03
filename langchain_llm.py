@@ -4,7 +4,7 @@ from enum import Enum
 import os, logging, base64
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-
+from langsmith import traceable
 from constants import *
 from dotenv import load_dotenv
 load_dotenv()
@@ -81,7 +81,7 @@ class AIResponse(BaseModel):
     response_type: ResponseType
     content: Union[Score, Reasons, URL, Email]
 
-
+@traceable
 def talk_to_ai(prompt,
                max_tokens=DEFAULT_MAX_TOKENS,
                image_data=None,
@@ -100,6 +100,7 @@ def talk_to_ai(prompt,
         logging.error(f"Error in talk_to_ai: {str(e)}")
         return ""
 
+@traceable
 def talk_to_anthropic(prompt,
                       max_tokens=DEFAULT_MAX_TOKENS,
                       image_data=None,
@@ -133,6 +134,7 @@ def talk_to_anthropic(prompt,
         logging.error(f"Error in Anthropic AI communication: {str(e)}")
         return ""
 
+@traceable
 def talk_to_openai(prompt,
                    max_tokens=DEFAULT_MAX_TOKENS,
                    image_data=None,
@@ -158,7 +160,7 @@ def talk_to_openai(prompt,
         logging.error(f"Error in OpenAI communication: {str(e)}")
         return ""
 
-
+@traceable
 def talk_fast(messages,
               model=OPENAI_FAST_MODEL,
               max_tokens=DEFAULT_MAX_TOKENS,
