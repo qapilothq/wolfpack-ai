@@ -525,8 +525,9 @@ def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().h
             candidate_profile = json.loads(response)
 
         if "Personal Information" in candidate_profile and "linkedin" in candidate_profile.get("Personal Information"):
-            logging.info(f"requestid :: {request_id} :: Extracting LinkedIn profile - {candidate_profile.get("Personal Information").get("linkedin")}")
-            candidate_profile["linkedin"] = extract_linkedin_data(candidate_profile.get("Personal Information").get("linkedin"))
+            linkedin_url = candidate_profile.get("Personal Information").get("linkedin")
+            logging.info(f"requestid :: {request_id} :: Extracting LinkedIn profile - {linkedin_url}")
+            candidate_profile["linkedin"] = extract_linkedin_data(linkedin_url)
         candidate_profile["request_id"] = request_id
         logging.info(f"requestid :: {request_id} :: Candidate profile extracted - {candidate_profile}")
         return candidate_profile
