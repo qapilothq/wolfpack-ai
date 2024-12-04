@@ -138,6 +138,8 @@ def extract_text_and_image_from_pdf(url):
 #job description functions
 @traceable
 def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex):
+    logging.info(f"requestid :: {request_id} :: Extracting job requirements from JD - {job_desc}")
+    logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     Extract the key requirements from the following job description.
 
@@ -162,22 +164,26 @@ def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex)
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
+    logging.info(f"requestid :: {request_id} :: Calling AI to get job requirements")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
     if response is None:
-        return {"status": "failed", "message": "Exception occured - " + response_message}
+        return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             job_requirements = response
         else:
             job_requirements = json.loads(response)
+        job_requirements['request_id'] = request_id
+        logging.info(f"requestid :: {request_id} :: Extracted Job requirements - {job_requirements}")
         return job_requirements
     except json.JSONDecodeError as e:
-        logging.error(f"Error parsing job requirements: {str(e)}")
-        logging.error(f"Response: {response}")
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        logging.error(f"requestid :: {request_id} :: Exxception while parsing AI output for job requirements | Response - {response} :: Exception - {str(e)}")
+        return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
 def generate_role_questions(job_desc, client=None, request_id=uuid.uuid4().hex):
+    logging.info(f"requestid :: {request_id} :: Generating role based questions based on JD - {job_desc}")
+    logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     You are an experienced recruiter in the tech industry. 
     You need to assess candidates based on the role, specified by the job description below. 
@@ -195,21 +201,23 @@ def generate_role_questions(job_desc, client=None, request_id=uuid.uuid4().hex):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
+    logging.info(f"requestid :: {request_id} :: Calling AI for Role based questions")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
     if response is None:
-        return {"status": "failed", "message": "Exception occured - " + response_message}
+        return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             role_questions = response
         else:
             role_questions = json.loads(response)
+            role_questions["request_id"] = request_id
+            logging.info(f"requestid :: {request_id} :: Generated role based questions - {role_questions}")
         return role_questions
     except json.JSONDecodeError as e:
         error_message = f"Error generating job specific questions: {str(e)}"
-        logging.error(error_message)
-        logging.error(f"Response: {response}")
+        logging.error(f"requestid :: {request_id} :: Error generating job specific questions | AI response - {response} :: Exception - {str(e)}")
         # raise HTTPException(status_code=500, detail=error_message)
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        return {"request_id": request_id, "status": "failed", "message": error_message}
     
 @traceable
 def rank_job_description(job_desc, client=None):
@@ -404,16 +412,19 @@ Please provide an improved version of the job description that addresses the imp
 #resume functions
 @traceable
 def generate_candidate_questions(job_desc, resume_url, client=None, request_id=uuid.uuid4().hex):
-    
+    logging.info(f"requestid :: {request_id} :: Generating candidate profile based questions - {resume_url}")
     try:
+        logging.info(f"requestid :: {request_id} :: Extracting text from resume - {resume_url}")
         extracted_data = extract_text_and_image_from_pdf(resume_url)
+        logging.info(f"requestid :: {request_id} :: Unifying resume format for - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles=constants.FONT_PRESETS, generate_pdf=False)
         
         if not unified_resume:
-            return {"status": "failed", "message": "Failure to unify the resume format"}
+            return {"request_id": request_id, "status": "failed", "message": "Failure to unify the resume format"}
     except Exception as e:
-        return {"status": "failed", "message": "Exception occured while extracting data from resume - " + str(e)}
+        return {"request_id": request_id, "status": "failed", "message": "Exception occured while extracting data from resume - " + str(e)}
     
+    logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     You are an experienced recruiter in the tech industry. You need to assess candidates based on the role, specified by the job description below. 
     This assessment is for initial screening only, not technical interview. The questions should be based on the industry standard of identifying the basic knowledge about the technology and experience as specified by the job description and the resume of the candidate. The questions should be tailored to the candidate customised to their 
@@ -437,29 +448,34 @@ def generate_candidate_questions(job_desc, resume_url, client=None, request_id=u
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
+    logging.info(f"requestid :: {request_id} :: Calling AI for candidate profile based questions - {resume_url}")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
     if response is None:
-            return {"status": "failed", "message": "Exception occured - " + response_message}
+            return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
-            role_questions = response
+            candidate_questions = response
         else:
-            role_questions = json.loads(response)
-        return role_questions
+            candidate_questions = json.loads(response)
+        candidate_questions["request_id"] = request_id
+        logging.info(f"requestid :: {request_id} :: Generated candidate profile based questions - {candidate_questions}")
+        return candidate_questions
     except json.JSONDecodeError as e:
         error_message = f"Error generating job specific questions: {str(e)}"
-        logging.error(error_message)
-        logging.error(f"AI Response: {response}")
+        logging.error(f"requestid :: {request_id} :: Error generating candidate profile specific questions | AI response - {response} :: Exception - {str(e)}")
         # raise HTTPException(status_code=500, detail=error_message)
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        return {"request_id": request_id, "status": "failed", "message": error_message}
 
 @traceable
 def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().hex):
+    logging.info(f"requestid :: {request_id} :: Extracting candidate profile from resume - {resume_url}")
     try:
+        logging.info(f"requestid :: {request_id} :: Extracting text from resume PDF - {resume_url}")
         resume_text, resume_images = extract_text_and_image_from_pdf(resume_url)
     except Exception as e:
         return {"status": "failed", "message": "Exception occured - " + str(e)}
     
+    logging.info(f"requestid :: {request_id} :: Building AI prompt - {resume_url}")
     prompt = f"""
     Analyze the resume and provide the following key information and if any information not available  mark as “NA”
 
@@ -498,9 +514,10 @@ def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().h
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
+    logging.info(f"requestid :: {request_id} :: Calling AI to get candidate profile - {resume_url}")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
     if response is None:
-            return {"status": "failed", "message": "Exception occured - " + response_message}
+            return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             candidate_profile = response
@@ -508,12 +525,15 @@ def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().h
             candidate_profile = json.loads(response)
 
         if "Personal Information" in candidate_profile and "linkedin" in candidate_profile.get("Personal Information"):
+            logging.info(f"requestid :: {request_id} :: Extracting LinkedIn profile - {candidate_profile.get("Personal Information").get("linkedin")}")
             candidate_profile["linkedin"] = extract_linkedin_data(candidate_profile.get("Personal Information").get("linkedin"))
+        candidate_profile["request_id"] = request_id
+        logging.info(f"requestid :: {request_id} :: Candidate profile extracted - {candidate_profile}")
         return candidate_profile
     except json.JSONDecodeError as e:
         logging.error(f"Error parsing job requirements: {str(e)}")
         logging.error(f"AI Response: {response}")
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
 def assess_resume_quality(resume_images, client=None):
@@ -666,6 +686,8 @@ def extract_website_info(resume_text, client=None):
 
 @traceable
 def evaluate_candidate_answer(question, answer, client=None, request_id=uuid.uuid4().hex):
+    logging.info(f"requestid :: {request_id} :: Evaluating candidate answers | Question - {question} :: Answer - {answer}")
+    logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     You are an experienced hiring manager with 10 years of experience in tech. 
     You are screening the candidates to interview for your organisation. 
@@ -710,19 +732,21 @@ def evaluate_candidate_answer(question, answer, client=None, request_id=uuid.uui
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
+    logging.info(f"requestid :: {request_id} :: Calling AI for answer evaluation")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
     if response is None:
-            return {"status": "failed", "message": "Exception occured - " + response_message}
+            return {"request_id": request_id, "status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             answer_score = response
         else:
             answer_score = json.loads(response)
+            answer_score["request_id"] = request_id
+            logging.info(f"requestid :: {request_id} :: Answer evaluation score - {answer_score}")
         return answer_score
     except json.JSONDecodeError as e:
-        logging.error(f"Error evaluating candidate answer : {str(e)}")
-        logging.error(f"Response: {response}")
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        logging.error(f"requestid :: {request_id} :: Error evaluating candidate answer | AI response - {response} :: Exception - {str(e)}")
+        return {"request_id": request_id, "status": "failed", "message": "Error evaluating candidate answer - " + str(e)}
 
 #match functions
 @traceable
@@ -908,7 +932,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client
     # Normalize total score to 0 - 100 scale
     final_score = int((total_score / total_weight) * 100)
 
-    logging.error(f"requestid :: {request_id} :: generating match reasons")
+    logging.info(f"requestid :: {request_id} :: generating match reasons")
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
     
     return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
@@ -1261,6 +1285,7 @@ def match_single_resume(job_desc, file, unified_resume, resume_images):
 @traceable
 def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False, request_id=uuid.uuid4().hex):
     
+    logging.info(f"requestid :: {request_id} :: Matching resume with job | Resume - {resume_url} :: JD - {job_desc}")
     try:
         logging.info(f"requestid :: {request_id} :: Extracting text from resume PDF - {resume_url}")
         extracted_data = extract_text_and_image_from_pdf(resume_url)
