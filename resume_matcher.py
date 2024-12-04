@@ -76,7 +76,7 @@ def extract_linkedin_data(linkedin_url):
     except Exception as e:
         error_message = f"Error getting LinkedIn profile name from url for {linkedin_url}: {str(e)}"
         logging.error(error_message)
-        return None
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 def extract_text_and_image_from_pdf(url):
     
@@ -161,7 +161,9 @@ def extract_job_requirements(job_desc, client=None):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
+    if response is None:
+        return {"status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             job_requirements = response
@@ -171,7 +173,7 @@ def extract_job_requirements(job_desc, client=None):
     except json.JSONDecodeError as e:
         logging.error(f"Error parsing job requirements: {str(e)}")
         logging.error(f"Response: {response}")
-        return None
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
 def generate_role_questions(job_desc, client=None):
@@ -192,7 +194,9 @@ def generate_role_questions(job_desc, client=None):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
+    if response is None:
+        return {"status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             role_questions = response
@@ -203,7 +207,8 @@ def generate_role_questions(job_desc, client=None):
         error_message = f"Error generating job specific questions: {str(e)}"
         logging.error(error_message)
         logging.error(f"Response: {response}")
-        raise HTTPException(status_code=500, detail=error_message)
+        # raise HTTPException(status_code=500, detail=error_message)
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
     
 @traceable
 def rank_job_description(job_desc, client=None):
@@ -310,8 +315,9 @@ def rank_job_description(job_desc, client=None):
         # Initialize 'score' to 0 before accessing it
         criterion['score'] = 0
 
-        response = talk_fast(prompt, client=client)
-        
+        response, response_message = talk_fast(prompt, client=client)
+        if response is None:
+            return {"status": "failed", "message": "Exception occured - " + response_message}
         if criterion['score'] < 10 and criterion['weight'] >= 20:
             if criterion['weight'] >= 40:
                 red_flags['🚩'].append(criterion['name'])
@@ -350,7 +356,9 @@ def rank_job_description(job_desc, client=None):
         "Tip 3"
     ]
     """
-    tips_text = talk_fast(tips_prompt, max_tokens=150, client=client)
+    tips_text, tips_response_message = talk_fast(tips_prompt, max_tokens=150, client=client)
+    if tips_text is None:
+            return {"status": "failed", "message": "Exception occured - " + tips_response_message}
     try:
         improvement_tips = json5.loads(tips_text)
         if not isinstance(improvement_tips, list):
@@ -384,7 +392,9 @@ Please provide an improved version of the job description that addresses the imp
 """
 
     try:
-        improved_desc = talk_to_ai(prompt, max_tokens=1000, client=client)
+        improved_desc, improved_desc_response_message = talk_to_ai(prompt, max_tokens=1000, client=client)
+        if improved_desc is None:
+            return {"status": "failed", "message": "Exception occured - " + improved_desc_response_message}
         return improved_desc.strip() if improved_desc else None
     except Exception as e:
         logging.error(f"Error improving job description: {str(e)}")
@@ -426,7 +436,9 @@ def generate_candidate_questions(job_desc, resume_url, client=None):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
+    if response is None:
+            return {"status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             role_questions = response
@@ -436,11 +448,17 @@ def generate_candidate_questions(job_desc, resume_url, client=None):
     except json.JSONDecodeError as e:
         error_message = f"Error generating job specific questions: {str(e)}"
         logging.error(error_message)
-        logging.error(f"Response: {response}")
-        raise HTTPException(status_code=500, detail=error_message)
+        logging.error(f"AI Response: {response}")
+        # raise HTTPException(status_code=500, detail=error_message)
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
-def extract_candidate_profile(resume_text, client=None):
+def extract_candidate_profile(resume_url, client=None):
+    try:
+        resume_text, resume_images = extract_text_and_image_from_pdf(resume_url)
+    except Exception as e:
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
+    
     prompt = f"""
     Analyze the resume and provide the following key information and if any information not available  mark as “NA”
 
@@ -479,7 +497,9 @@ def extract_candidate_profile(resume_text, client=None):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
+    if response is None:
+            return {"status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             candidate_profile = response
@@ -491,8 +511,8 @@ def extract_candidate_profile(resume_text, client=None):
         return candidate_profile
     except json.JSONDecodeError as e:
         logging.error(f"Error parsing job requirements: {str(e)}")
-        logging.error(f"Response: {response}")
-        return {}
+        logging.error(f"AI Response: {response}")
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
 def assess_resume_quality(resume_images, client=None):
@@ -595,7 +615,9 @@ def assess_resume_quality(resume_images, client=None):
         Provide your evaluation as an integer score from 0 to 100, where 0 is the lowest and 100 is the highest.
         Only return the integer score, nothing else.
         """
-        response = talk_fast(prompt, max_tokens=200, image_data=front_page_image, client=client)
+        response, response_message = talk_fast(prompt, max_tokens=200, image_data=front_page_image, client=client)
+        if response is None:
+            return {"status": "failed", "message": "Exception occured - " + response_message}
         try:
             if isinstance(response, dict) and 'content' in response and 'value' in response['content']:
                 score = response['content']['value']
@@ -630,8 +652,9 @@ def extract_website_info(resume_text, client=None):
     Only output the URL or an empty string.
     You can only speak URL. You can only output valid URL. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    website_response = talk_fast(website_prompt, max_tokens=150, client=client)
-    
+    website_response, website_response_message = talk_fast(website_prompt, max_tokens=150, client=client)
+    if website_response is None:
+            return {"status": "failed", "message": "Exception occured - " + website_response_message}
     if isinstance(website_response, dict) and 'content' in website_response:
         website = website_response['content'].get('value', '')
     else:
@@ -686,7 +709,9 @@ def evaluate_candidate_answer(question, answer, client=None):
     Only output valid JSON. 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    response = talk_to_ai(prompt, max_tokens=2000, client=client)
+    response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
+    if response is None:
+            return {"status": "failed", "message": "Exception occured - " + response_message}
     try:
         if isinstance(response, dict):
             answer_score = response
@@ -696,17 +721,19 @@ def evaluate_candidate_answer(question, answer, client=None):
     except json.JSONDecodeError as e:
         logging.error(f"Error evaluating candidate answer : {str(e)}")
         logging.error(f"Response: {response}")
-        return None
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 #match functions
 @traceable
 def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     # Extract job requirements and wait for completion
     job_requirements = extract_job_requirements(job_desc, client)
-    if not job_requirements:
+    if (not job_requirements) or ("status" in job_requirements and job_requirements.get("status", "") == "failed"):
         logging.error("Failed to extract job requirements")
         # print(colored("Error: Failed to extract job requirements. Exiting program.", 'red'))
-        sys.exit(1)  # Exit the script with an error code
+        # sys.exit(1)  # Exit the script with an error code
+        raise ValueError("Failed to extract job requirements")
+
 
     # Check if job_requirements contains expected keys
     # if 'emphasis' not in job_requirements:
@@ -804,7 +831,8 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     
     if total_weight == 0:
         logging.error("Total weight of criteria is zero")
-        return {'score': 0, 'match_reasons': "Error: Invalid criteria weights", 'website': '', 'red_flags': []}
+        raise ValueError("Error: Total weight of criteria is zero")
+        # return {'score': 0, 'match_reasons': "Error: Total weight of criteria is zero", 'red_flags': red_flags}
 
     total_score = 0
 
@@ -834,7 +862,10 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
         Only return the integer score, nothing else. No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
         """
 
-        response = talk_fast(prompt, client=client)
+        response, response_message = talk_fast(prompt, client=client)
+        if response is None:
+            raise ValueError("Error: AI responded with None")
+            # return {"status": "failed", "message": "Exception occured - " + response_message}
         try:
             if isinstance(response, dict) and 'content' in response and 'value' in response['content']:
                 score = response['content']['value']
@@ -842,9 +873,9 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
                 try:
                     score = int(response)
                 except ValueError as e:
-                    raise ValueError("Unexpected response format")
+                    raise ValueError("Error: Unexpected response format from AI")
             else:
-                raise ValueError("Unexpected response format")
+                raise ValueError("Error: Unexpected response format from AI")
             
             if 0 <= score <= 100:
                 criterion['score'] = score
@@ -856,7 +887,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
                     else:
                         red_flags['3'].append(criterion['name'])
             else:
-                raise ValueError("Score out of range")
+                raise ValueError("Error: Score out of range")
         except ValueError as ve:
             logging.error(f"Error parsing score for criterion {criterion['name']}: {ve}")
             criterion['score'] = 0
@@ -872,10 +903,6 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     final_score = int((total_score / total_weight) * 100)
 
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
-
-    # website = extract_website_info(resume_text, client)
-
-    # email_response = generate_email_response(final_score, client)
     
     return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
 
@@ -896,7 +923,9 @@ def generate_match_reasons(resume_text, job_requirements, client=None):
 
     Only output the reasons as a single string. No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    reasons_response = talk_fast(reasons_prompt, max_tokens=100, client=client)
+    reasons_response, reasons_response_message = talk_fast(reasons_prompt, max_tokens=100, client=client)
+    if reasons_response is None:
+        return ''
     
     if isinstance(reasons_response, dict) and 'content' in reasons_response:
         match_reasons = reasons_response['content'].get('value', '')
@@ -925,7 +954,9 @@ def generate_email_response(final_score, client=None):
 
     You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
     """
-    email_text = talk_to_ai(email_prompt, max_tokens=180, client=client)
+    email_text, email_text_response_message = talk_to_ai(email_prompt, max_tokens=180, client=client)
+    if email_text is None:
+            return {"status": "failed", "message": "Exception occured - " + email_text_response_message}
     try:
         email_response = json5.loads(email_text)
     except ValueError as e:
@@ -1132,7 +1163,9 @@ To convert an original resume into the defined object model, a parser should fol
 You can only speak in clean, concise, Markdown format.     
     """
 
-    unified_resume = talk_to_ai(prompt.format(resume_text=resume_text), max_tokens=4092)
+    unified_resume, unified_resume_message = talk_to_ai(prompt.format(resume_text=resume_text), max_tokens=4092)
+    if unified_resume is None:
+        return None, None
     
     # Create 'out' folder if it doesn't exist
     out_folder = Path('out')
@@ -1212,8 +1245,11 @@ def match_single_resume(job_desc, file, unified_resume, resume_images):
     if not unified_resume:
         return {"status": "failed", "message": "Failure to unify the resume format"}
     
-    result = match_resume_to_job(unified_resume, job_desc, resume_images)
-    return result
+    try:
+        result = match_resume_to_job(unified_resume, job_desc, resume_images)
+        return result
+    except Exception as e:
+        return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
 def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False):
@@ -1262,7 +1298,9 @@ Only output the suggestions, no intro, no explanations, no comments.
 """
     
     try:
-        suggestions = talk_to_ai(prompt, max_tokens=1000)
+        suggestions, suggestions_message = talk_to_ai(prompt, max_tokens=1000)
+        if suggestions is None:
+            print({"status": "failed", "message": "Exception occured - " + suggestions_message})
         if suggestions:
             print("\n\033[1mHow can I improve the job description?\033[0m")
             print(suggestions)

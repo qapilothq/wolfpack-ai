@@ -90,15 +90,15 @@ def talk_to_ai(prompt,
     chosen_api = "openai"
     try:
         if chosen_api == "openai":
-            response = talk_to_openai(prompt, max_tokens, image_data, client)
+            response, response_message = talk_to_openai(prompt, max_tokens, image_data, client)
         elif chosen_api == "fastopenai":
-            response = talk_fast()
+            response, response_message = talk_fast()
         # elif chosen_api == "anthropic":
         #     response = talk_to_anthropic(prompt, max_tokens, image_data, client)
-        return response.strip() if response else ""
+        return response.strip() if response else None, response_message
     except Exception as e:
         logging.error(f"Error in talk_to_ai: {str(e)}")
-        return ""
+        return None, str(e)
 
 # @traceable
 # def talk_to_anthropic(prompt,
@@ -155,10 +155,10 @@ def talk_to_openai(prompt,
         #     max_tokens=max_tokens
         # )
         response = client.invoke(input=messages)
-        return response.content.strip()
+        return response.content.strip(), "success"
     except Exception as e:
         logging.error(f"Error in OpenAI communication: {str(e)}")
-        return ""
+        return None, str(e)
 
 @traceable
 def talk_fast(messages,
@@ -201,7 +201,7 @@ def talk_fast(messages,
         #     max_tokens=max_tokens
         # )
         response = client.invoke(input=messages)
-        return response.content.strip()
+        return response.content.strip(), "success"
     except Exception as e:
         logging.error(f"Error in talk_fast: {str(e)}")
-        return None
+        return None, str(e)

@@ -36,8 +36,7 @@ async def match_resume_to_job(resumeJobMatch: ResumeJobMatch):
 @traceable
 @app.post("/extract_candidate_profile")
 async def extract_candidate_profile(resume: Resume):
-    text, images = resume_matcher.extract_text_and_image_from_pdf(resume.url)
-    candidate_profile = resume_matcher.extract_candidate_profile(text)
+    candidate_profile = resume_matcher.extract_candidate_profile(resume.url)
     return candidate_profile
 
 @traceable
