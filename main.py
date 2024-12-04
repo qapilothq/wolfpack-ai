@@ -4,6 +4,7 @@ from langsmith import traceable
 import uvicorn
 import resume_matcher
 import logging
+import uuid, sys
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 app = FastAPI()
@@ -24,37 +25,43 @@ class JD(BaseModel):
 @traceable
 @app.post("/evaluate_candidate_answer")
 async def evaluate_candidate_answer(assessment: Assessment):
-    answer_score = resume_matcher.evaluate_candidate_answer(question=assessment.question, answer=assessment.answer)
+    request_id = uuid.uuid4().hex
+    answer_score = resume_matcher.evaluate_candidate_answer(question=assessment.question, answer=assessment.answer, request_id=request_id)
     return answer_score
 
 @traceable
 @app.post("/match_resume_to_job")
 async def match_resume_to_job(resumeJobMatch: ResumeJobMatch):
-    match = resume_matcher.process_single_resume(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url)
+    request_id = uuid.uuid4().hex
+    match = resume_matcher.process_single_resume(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url, request_id=request_id)
     return match
 
 @traceable
 @app.post("/extract_candidate_profile")
 async def extract_candidate_profile(resume: Resume):
-    candidate_profile = resume_matcher.extract_candidate_profile(resume.url)
+    request_id = uuid.uuid4().hex
+    candidate_profile = resume_matcher.extract_candidate_profile(resume.url, request_id=request_id)
     return candidate_profile
 
 @traceable
 @app.post("/extract_job_requirements")
 async def extract_job_requirements(jd: JD):
-    job_requirements = resume_matcher.extract_job_requirements(jd.jd)
+    request_id = uuid.uuid4().hex
+    job_requirements = resume_matcher.extract_job_requirements(jd.jd, request_id=request_id)
     return job_requirements
 
 @traceable
 @app.post("/generate_role_questions")
 async def generate_role_questions(jd: JD):
-    job_requirements = resume_matcher.generate_role_questions(jd.jd)
+    request_id = uuid.uuid4().hex
+    job_requirements = resume_matcher.generate_role_questions(jd.jd, request_id=request_id)
     return job_requirements
 
 @traceable
 @app.post("/generate_candidate_questions")
 async def generate_candidate_questions(resumeJobMatch: ResumeJobMatch):
-    job_requirements = resume_matcher.generate_candidate_questions(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url)
+    request_id = uuid.uuid4().hex
+    job_requirements = resume_matcher.generate_candidate_questions(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url, request_id=request_id)
     return job_requirements
 
 if __name__ == '__main__':

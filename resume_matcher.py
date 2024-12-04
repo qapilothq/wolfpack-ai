@@ -8,6 +8,7 @@ from pathlib import Path
 from langchain_llm import *
 from utils import *
 from langsmith import traceable
+import uuid
 # Initialize logging with more detailed format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -136,7 +137,7 @@ def extract_text_and_image_from_pdf(url):
 
 #job description functions
 @traceable
-def extract_job_requirements(job_desc, client=None):
+def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex):
     prompt = f"""
     Extract the key requirements from the following job description.
 
@@ -176,7 +177,7 @@ def extract_job_requirements(job_desc, client=None):
         return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
-def generate_role_questions(job_desc, client=None):
+def generate_role_questions(job_desc, client=None, request_id=uuid.uuid4().hex):
     prompt = f"""
     You are an experienced recruiter in the tech industry. 
     You need to assess candidates based on the role, specified by the job description below. 
@@ -402,7 +403,7 @@ Please provide an improved version of the job description that addresses the imp
 
 #resume functions
 @traceable
-def generate_candidate_questions(job_desc, resume_url, client=None):
+def generate_candidate_questions(job_desc, resume_url, client=None, request_id=uuid.uuid4().hex):
     
     try:
         extracted_data = extract_text_and_image_from_pdf(resume_url)
@@ -453,7 +454,7 @@ def generate_candidate_questions(job_desc, resume_url, client=None):
         return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
-def extract_candidate_profile(resume_url, client=None):
+def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().hex):
     try:
         resume_text, resume_images = extract_text_and_image_from_pdf(resume_url)
     except Exception as e:
@@ -664,7 +665,7 @@ def extract_website_info(resume_text, client=None):
     return website
 
 @traceable
-def evaluate_candidate_answer(question, answer, client=None):
+def evaluate_candidate_answer(question, answer, client=None, request_id=uuid.uuid4().hex):
     prompt = f"""
     You are an experienced hiring manager with 10 years of experience in tech. 
     You are screening the candidates to interview for your organisation. 
@@ -725,11 +726,12 @@ def evaluate_candidate_answer(question, answer, client=None):
 
 #match functions
 @traceable
-def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
+def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client=None):
     # Extract job requirements and wait for completion
+    logging.info(f"requestid :: {request_id} :: Extracting job requirements")
     job_requirements = extract_job_requirements(job_desc, client)
     if (not job_requirements) or ("status" in job_requirements and job_requirements.get("status", "") == "failed"):
-        logging.error("Failed to extract job requirements")
+        logging.error(f"requestid :: {request_id} :: Failed to extract job requirements")
         # print(colored("Error: Failed to extract job requirements. Exiting program.", 'red'))
         # sys.exit(1)  # Exit the script with an error code
         raise ValueError("Failed to extract job requirements")
@@ -830,7 +832,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     }
     
     if total_weight == 0:
-        logging.error("Total weight of criteria is zero")
+        logging.error(f"requestid :: {request_id} :: Total weight of criteria is zero")
         raise ValueError("Error: Total weight of criteria is zero")
         # return {'score': 0, 'match_reasons': "Error: Total weight of criteria is zero", 'red_flags': red_flags}
 
@@ -864,6 +866,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
 
         response, response_message = talk_fast(prompt, client=client)
         if response is None:
+            logging.error(f"requestid :: {request_id} :: AI responded with None")
             raise ValueError("Error: AI responded with None")
             # return {"status": "failed", "message": "Exception occured - " + response_message}
         try:
@@ -873,8 +876,10 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
                 try:
                     score = int(response)
                 except ValueError as e:
+                    logging.error(f"requestid :: {request_id} :: Unexpected response format from AI :: {str(e)}")
                     raise ValueError("Error: Unexpected response format from AI")
             else:
+                logging.error(f"requestid :: {request_id} :: Unexpected response format from AI")
                 raise ValueError("Error: Unexpected response format from AI")
             
             if 0 <= score <= 100:
@@ -887,12 +892,13 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
                     else:
                         red_flags['3'].append(criterion['name'])
             else:
+                logging.error(f"requestid :: {request_id} :: Score received from AI out of range")
                 raise ValueError("Error: Score out of range")
         except ValueError as ve:
-            logging.error(f"Error parsing score for criterion {criterion['name']}: {ve}")
+            logging.error(f"requestid :: {request_id} :: Error parsing score for criterion {criterion['name']}: {ve}")
             criterion['score'] = 0
         except Exception as e:
-            logging.error(f"Unexpected error for criterion {criterion['name']}: {e}")
+            logging.error(f"requestid :: {request_id} :: Unexpected error for criterion {criterion['name']}: {e}")
             criterion['score'] = 0
 
         scores[criterion['key']] = criterion['score']
@@ -902,6 +908,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, client=None):
     # Normalize total score to 0 - 100 scale
     final_score = int((total_score / total_weight) * 100)
 
+    logging.error(f"requestid :: {request_id} :: generating match reasons")
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
     
     return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
@@ -1252,19 +1259,23 @@ def match_single_resume(job_desc, file, unified_resume, resume_images):
         return {"status": "failed", "message": "Exception occured - " + str(e)}
 
 @traceable
-def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False):
+def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False, request_id=uuid.uuid4().hex):
     
     try:
+        logging.info(f"requestid :: {request_id} :: Extracting text from resume PDF - {resume_url}")
         extracted_data = extract_text_and_image_from_pdf(resume_url)
+        logging.info(f"requestid :: {request_id} :: Unifying resume format for resume - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles, generate_pdf)
         
         if not unified_resume:
-            return {"status": "failed", "message": "Failure to unify the resume format"}
+            return {"request_id" : request_id, "status": "failed", "message": "Failure to unify the resume format"}
         
-        result = match_resume_to_job(unified_resume, job_desc, resume_images)
+        result = match_resume_to_job(unified_resume, job_desc, resume_images, request_id)
+        result["request_id"] = request_id
+        logging.info(f"requestid :: {request_id} :: Resume - Job match result for {resume_url} :: {result}")
         return result
     except Exception as e:
-        return {"status": "failed", "message": "Exception occured - " + str(e)}
+        return {"request_id" : request_id, "status": "failed", "message": "Exception occured - " + str(e)}
 
 #analysis function
 @traceable
