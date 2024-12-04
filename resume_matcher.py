@@ -925,15 +925,15 @@ def generate_match_reasons(resume_text, job_requirements, client=None):
     """
     reasons_response, reasons_response_message = talk_fast(reasons_prompt, max_tokens=100, client=client)
     if reasons_response is None:
-        return ''
+        return []
     
     if isinstance(reasons_response, dict) and 'content' in reasons_response:
-        match_reasons = reasons_response['content'].get('value', '')
+        match_reasons = reasons_response['content'].get('value', [])
     elif isinstance(reasons_response, str):
         match_reasons = reasons_response.split("|")
     else:
         logging.error(f"Unexpected format for reasons response: {reasons_response}")
-        match_reasons = ''
+        match_reasons = []
 
     return match_reasons
 
