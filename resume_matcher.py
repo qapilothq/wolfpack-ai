@@ -389,16 +389,16 @@ def rank_job_description(job_desc, client=None):
 @traceable
 def improve_job_description(job_desc, ranking, client=None):
     prompt = f"""
-As a hiring consultant, improve the following job description based on the ranking and improvement tips provided. Maintain the overall structure and key information while addressing the areas for improvement.
+        As a hiring consultant, improve the following job description based on the ranking and improvement tips provided. Maintain the overall structure and key information while addressing the areas for improvement.
 
-Original Job Description:
-{job_desc}
+        Original Job Description:
+        {job_desc}
 
-Ranking:
-{json.dumps(ranking, indent=2)}
+        Ranking:
+        {json.dumps(ranking, indent=2)}
 
-Please provide an improved version of the job description that addresses the improvement tips and enhances the areas with lower scores. Output the improved job description as plain text, ready to be saved to a file.
-"""
+        Please provide an improved version of the job description that addresses the improvement tips and enhances the areas with lower scores. Output the improved job description as plain text, ready to be saved to a file.
+        """
 
     try:
         improved_desc, improved_desc_response_message = talk_to_ai(prompt, max_tokens=1000, client=client)
@@ -933,10 +933,22 @@ def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client
     # Normalize total score to 0 - 100 scale
     final_score = int((total_score / total_weight) * 100)
 
+    # Map the final_score to a 5-point scale
+    if final_score <= 20:
+        rubric_score = 1
+    elif final_score <= 40:
+        rubric_score = 2
+    elif final_score <= 60:
+        rubric_score = 3
+    elif final_score <= 80:
+        rubric_score = 4
+    else:
+        rubric_score = 5
+
     logging.info(f"requestid :: {request_id} :: generating match reasons")
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
     
-    return {'score': final_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
+    return {'score': rubric_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
 
 @traceable
 def generate_match_reasons(resume_text, job_requirements, client=None):
