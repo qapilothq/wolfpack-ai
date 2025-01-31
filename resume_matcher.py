@@ -415,12 +415,13 @@ def generate_candidate_questions(job_desc, resume_url, client=None, request_id=u
     logging.info(f"requestid :: {request_id} :: Generating candidate profile based questions - {resume_url}")
     try:
         logging.info(f"requestid :: {request_id} :: Extracting text from resume - {resume_url}")
-        extracted_data = extract_text_and_image_from_pdf(resume_url)
+        extracted_data, images = extract_text_and_image_from_pdf(resume_url)
         logging.info(f"requestid :: {request_id} :: Unifying resume format for - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles=constants.FONT_PRESETS, generate_pdf=False)
         
         if not unified_resume:
-            return {"request_id": request_id, "status": "failed", "message": "Failure to unify the resume format"}
+            logging.info(f"requestid :: {request_id} :: Failure to unify the resume format for {resume_url}. Defaulting to extracted resume text.")
+            unified_resume = extracted_data
     except Exception as e:
         return {"request_id": request_id, "status": "failed", "message": "Exception occured while extracting data from resume - " + str(e)}
     
@@ -1281,7 +1282,7 @@ You can only speak in clean, concise, Markdown format.
 
 @traceable
 def unify_single_resume(file, font_styles, generate_pdf):
-    extracted_data = extract_text_and_image_from_pdf(file)
+    extracted_data, images = extract_text_and_image_from_pdf(file)
     return unify_format(extracted_data, font_styles, generate_pdf)
 
 @traceable
@@ -1301,12 +1302,13 @@ def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESE
     logging.info(f"requestid :: {request_id} :: Matching resume with job | Resume - {resume_url} :: JD - {job_desc}")
     try:
         logging.info(f"requestid :: {request_id} :: Extracting text from resume PDF - {resume_url}")
-        extracted_data = extract_text_and_image_from_pdf(resume_url)
+        extracted_data, images = extract_text_and_image_from_pdf(resume_url)
         logging.info(f"requestid :: {request_id} :: Unifying resume format for resume - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles, generate_pdf)
         
         if not unified_resume:
-            return {"request_id" : request_id, "status": "failed", "message": "Failure to unify the resume format"}
+            logging.info(f"requestid :: {request_id} :: Failure to unify the resume format for {resume_url}. Defaulting to extracted resume text.")
+            unified_resume = extracted_data
         
         result = match_resume_to_job(unified_resume, job_desc, resume_images, request_id)
         result["request_id"] = request_id
