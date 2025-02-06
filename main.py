@@ -64,5 +64,10 @@ async def generate_candidate_questions(resumeJobMatch: ResumeJobMatch):
     job_requirements = resume_matcher.generate_candidate_questions(job_desc=resumeJobMatch.jd, resume_url=resumeJobMatch.resume_url, request_id=request_id)
     return job_requirements
 
+# Health check endpoint
+@app.get("/")
+async def health_check():
+    return {"status": "ok"}
+
 if __name__ == '__main__':
     uvicorn.run(app, host='0.0.0.0', port=5050)
