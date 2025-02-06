@@ -188,7 +188,7 @@ def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex)
 
 @traceable
 def generate_role_questions(job_desc, client=None, request_id=uuid.uuid4().hex):
-    logging.info(f"requestid :: {request_id} :: Generating role based questions based on JD - {job_desc}")
+    logging.info(f"requestid :: {request_id} :: Generating role based questions based on JD")
     logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     You are an experienced recruiter in the tech industry. 
