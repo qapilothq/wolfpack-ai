@@ -7,3 +7,5 @@ job_description_enhanced.txt
 .env
 Profiles/
 __pycache__/
+venv/
+.venv/
