@@ -144,7 +144,7 @@ def extract_text_and_image_from_pdf(url):
 #job description functions
 @traceable
 def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex):
-    logging.info(f"requestid :: {request_id} :: Extracting job requirements from JD - {job_desc}")
+    logging.info(f"requestid :: {request_id} :: Extracting job requirements from JD")
     logging.info(f"requestid :: {request_id} :: Building AI prompt")
     prompt = f"""
     Extract the key requirements from the following job description.
@@ -1233,7 +1233,7 @@ def unify_format(extracted_data, font_styles, generate_pdf=False):
 
     unified_resume, unified_resume_message = talk_to_ai(prompt.format(resume_text=resume_text), max_tokens=4092)
     if unified_resume is None:
-        return None, None
+        return resume_text, resume_images
     
     # Create 'out' folder if it doesn't exist
     out_folder = Path('out')
@@ -1256,56 +1256,11 @@ def unify_format(extracted_data, font_styles, generate_pdf=False):
         md_file.write(unified_resume)
     logging.info(f"Markdown file created: {md_filename}")
     
-    # if generate_pdf:
-    #     # Convert Markdown to HTML (in memory)
-    #     html_content = markdown.markdown(unified_resume)
-
-    #     if font_styles.get('serif'):
-    #         font_family = FONT_PRESETS['serif']
-    #     elif font_styles.get('mono'):
-    #         font_family = FONT_PRESETS['mono']
-    #     else:
-    #         font_family = FONT_PRESETS['sans-serif']  # Default to sans-serif
-
-    #     html_with_style = f"""
-    #     <html>
-    #     <head>
-    #         <meta charset="UTF-8">
-    #         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    #         <style>
-    #         * {{
-    #             color: #3A3F53;
-    #             font-family: {font_family};
-    #         }}
-    #         body {{
-    #             font-size: 0.67em;
-    #             letter-spacing: -0.01em;
-    #             line-height: 1.125;
-    #             background-color: #fff;
-    #             padding: 0;
-    #             margin: 0;
-    #         }}
-    #         </style>
-    #     </head>
-    #     <body>
-    #         {html_content}
-    #     </body>
-    #     </html>
-    #     """
-
-    #     # Convert HTML to PDF
-    #     pdf_filename = out_folder / f"{safe_filename}_unified.pdf"
-    #     try:
-    #         HTML(string=html_with_style).write_pdf(pdf_filename)
-    #         logging.info(f"PDF file created: {pdf_filename}")
-    #     except Exception as e:
-    #         logging.error(f"Error creating PDF: {str(e)}")
-    
     return unified_resume, resume_images
 
 @traceable
 def unify_single_resume(file, font_styles, generate_pdf):
-    extracted_data, images = extract_text_and_image_from_pdf(file)
+    extracted_data = extract_text_and_image_from_pdf(file)
     return unify_format(extracted_data, font_styles, generate_pdf)
 
 @traceable
