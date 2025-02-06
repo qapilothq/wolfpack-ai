@@ -16,10 +16,10 @@ clients = {
     #                            model_name=os.getenv("ANTHROPIC_MODEL"), 
     #                            temperature=0, max_tokens=DEFAULT_MAX_TOKENS),
     "openai": ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'), 
-                         model_name=os.getenv("OPENAI_MODEL"), 
+                         model=os.getenv("OPENAI_MODEL"), 
                          temperature=0, max_tokens=DEFAULT_MAX_TOKENS),
     "fastopenai": ChatOpenAI(api_key=os.getenv('OPENAI_API_KEY'), 
-                             model_name=os.getenv("OPENAI_FAST_MODEL"), 
+                             model=os.getenv("OPENAI_FAST_MODEL"), 
                              temperature=0, max_tokens=DEFAULT_MAX_TOKENS)
 }
 
@@ -91,11 +91,13 @@ def talk_to_ai(prompt,
     try:
         if chosen_api == "openai":
             response, response_message = talk_to_openai(prompt, max_tokens, image_data, client)
-        elif chosen_api == "fastopenai":
-            response, response_message = talk_fast()
+        # elif chosen_api == "fastopenai":
+        #     response, response_message = talk_fast()
         # elif chosen_api == "anthropic":
         #     response = talk_to_anthropic(prompt, max_tokens, image_data, client)
-        return response.strip() if response else None, response_message
+        if not response:
+            return None, response_message
+        return response.strip(), response_message
     except Exception as e:
         logging.error(f"Error in talk_to_ai: {str(e)}")
         return None, str(e)
@@ -155,7 +157,10 @@ def talk_to_openai(prompt,
         #     max_tokens=max_tokens
         # )
         response = client.invoke(input=messages)
-        return response.content.strip(), "success"
+        if response and isinstance(response.content, str):
+            return response.content.strip(), "success"
+        else:
+            return None, "No response from LLM"
     except Exception as e:
         logging.error(f"Error in OpenAI communication: {str(e)}")
         return None, str(e)
@@ -192,7 +197,7 @@ def talk_fast(messages,
 
         if max_tokens <= 0:
             logging.error("Input text is too long for the model to process.")
-            return None  # Or handle as needed
+            return None, "Input text too long to process"  # Or handle as needed
     messages=[{"role": "user", "content": message.get_message()}]
     try:
         # response = client.chat.completions.create(
@@ -201,7 +206,10 @@ def talk_fast(messages,
         #     max_tokens=max_tokens
         # )
         response = client.invoke(input=messages)
-        return response.content.strip(), "success"
+        if response and isinstance(response.content, str):
+            return response.content.strip(), "success"
+        else:
+            return None, "No response from LLM"
     except Exception as e:
         logging.error(f"Error in talk_fast: {str(e)}")
         return None, str(e)

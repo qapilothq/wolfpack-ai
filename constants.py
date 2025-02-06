@@ -1,10 +1,10 @@
 import os
 
-ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL')
-OPENAI_MODEL = os.getenv('OPENAI_MODEL')
-OPENAI_FAST_MODEL = os.getenv('OPENAI_FAST_MODEL')
-DEFAULT_MAX_TOKENS = int(os.getenv('DEFAULT_MAX_TOKENS'))
-GPT_4O_CONTEXT_WINDOW = int(os.getenv('GPT_4O_CONTEXT_WINDOW'))
+ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-sonnet-20240620')
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o')
+OPENAI_FAST_MODEL = os.getenv('OPENAI_FAST_MODEL', 'gpt-4o-mini-2024-07-18')
+DEFAULT_MAX_TOKENS = int(os.getenv('DEFAULT_MAX_TOKENS', '1000'))
+GPT_4O_CONTEXT_WINDOW = int(os.getenv('GPT_4O_CONTEXT_WINDOW', '128000'))
 
 # Define font presets
 FONT_PRESETS = {
@@ -14,10 +14,10 @@ FONT_PRESETS = {
 }
 
 EMPHASIS = {
-    "technical_skills_weight": 40,
-    "soft_skills_weight": 15,
-    "experience_weight": 10,
-    "education_weight": 5,
+    "technical_skills_weight": 30,
+    "soft_skills_weight": 5,
+    "experience_weight": 20,
+    "education_weight": 15,
     "language_proficiency_weight": 15,
     "certifications_weight": 5,
     "location_weight": 10

@@ -9,6 +9,7 @@ from langchain_llm import *
 from utils import *
 from langsmith import traceable
 import uuid
+from typing import List, Dict, Any
 # Initialize logging with more detailed format
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -58,21 +59,26 @@ def extract_linkedin_data(linkedin_url):
     try:
         linkedin_profile_name = linkedin_url.split("/")[-1]
         linkedin_profile_data = get_linkedin_data(linkedin_profile_name)
-        candidate_linkedin_data = {
-            "username": linkedin_profile_data.get("username", ""),
-            "firstName": linkedin_profile_data.get("firstName", ""),
-            "lastName": linkedin_profile_data.get("lastName", ""),
-            "isOpenToWork": linkedin_profile_data.get("isOpenToWork", ""),
-            "summary": linkedin_profile_data.get("summary", ""),
-            "headline": linkedin_profile_data.get("headline", ""),
-            "location": get_linkedin_location(linkedin_profile_data.get("geo", "")),
-            "education": get_linkedin_education(linkedin_profile_data.get("educations", "")),
-            "positions": get_linkedin_positions(linkedin_profile_data.get("fullPositions", "")),
-            "courses": get_linkedin_courses(linkedin_profile_data.get("courses", "")),
-            "skills": get_linkedin_skills(linkedin_profile_data.get("skills", "")),
-            "honors": get_linkedin_honors(linkedin_profile_data.get("honors", "")),
-            "certifications": get_linkedin_certifications(linkedin_profile_data.get("certifications", ""))
-        }
+        if linkedin_profile_data:
+            candidate_linkedin_data = {
+                "username": linkedin_profile_data.get("username", ""),
+                "firstName": linkedin_profile_data.get("firstName", ""),
+                "lastName": linkedin_profile_data.get("lastName", ""),
+                "isOpenToWork": linkedin_profile_data.get("isOpenToWork", ""),
+                "summary": linkedin_profile_data.get("summary", ""),
+                "headline": linkedin_profile_data.get("headline", ""),
+                "location": get_linkedin_location(linkedin_profile_data.get("geo", "")),
+                "education": get_linkedin_education(linkedin_profile_data.get("educations", "")),
+                "positions": get_linkedin_positions(linkedin_profile_data.get("fullPositions", "")),
+                "courses": get_linkedin_courses(linkedin_profile_data.get("courses", "")),
+                "skills": get_linkedin_skills(linkedin_profile_data.get("skills", "")),
+                "honors": get_linkedin_honors(linkedin_profile_data.get("honors", "")),
+                "certifications": get_linkedin_certifications(linkedin_profile_data.get("certifications", ""))
+            }
+        else:
+            error_message = f"Couldn't extract any data from LinkedIn profile name from url for {linkedin_url}"
+            logging.error(error_message)
+            candidate_linkedin_data = {}
         return candidate_linkedin_data
     except Exception as e:
         error_message = f"Error getting LinkedIn profile name from url for {linkedin_url}: {str(e)}"
@@ -162,7 +168,7 @@ def extract_job_requirements(job_desc, client=None, request_id=uuid.uuid4().hex)
     }}
 
     Only output valid JSON. 
-    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \\`\\`\\`json\\`\\`\\` wrapper.
     """
     logging.info(f"requestid :: {request_id} :: Calling AI to get job requirements")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
@@ -199,7 +205,7 @@ def generate_role_questions(job_desc, client=None, request_id=uuid.uuid4().hex):
     {{"questions": [list of strings]}}
 
     Only output valid JSON. 
-    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \\`\\`\\`json\\`\\`\\` wrapper.
     """
     logging.info(f"requestid :: {request_id} :: Calling AI for Role based questions")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
@@ -301,7 +307,7 @@ def rank_job_description(job_desc, client=None):
         }
     ]
     scores = {}
-    total_weight = sum(criterion['weight'] for criterion in criteria)
+    total_weight = calculate_total_weight(criteria=criteria)
     total_score = 0
 
     for criterion in criteria:
@@ -325,12 +331,17 @@ def rank_job_description(job_desc, client=None):
         criterion['score'] = 0
 
         response, response_message = talk_fast(prompt, client=client)
-        if response is None:
-            return {"status": "failed", "message": "Exception occured - " + response_message}
-        if criterion['score'] < 10 and criterion['weight'] >= 20:
-            if criterion['weight'] >= 40:
+        if not response:
+            return {"status": "failed", "message": "Exception occurred - " + response_message}
+        try:
+            weight = float(criterion['weight'])
+        except (ValueError, TypeError) as e:
+            return {"status": "failed", "message": f"Invalid weight value for criterion{criterion}: {e}"}
+        
+        if criterion['score'] < 10 and weight >= 20:
+            if weight >= 40:
                 red_flags['🚩'].append(criterion['name'])
-            elif criterion['weight'] >= 30:
+            elif weight >= 30:
                 red_flags['📍'].append(criterion['name'])
             else:
                 red_flags['⛳'].append(criterion['name'])
@@ -386,6 +397,12 @@ def rank_job_description(job_desc, client=None):
 
     return result
 
+def calculate_total_weight(criteria: List[Dict[str, Any]]) -> float:
+    scores = {}
+    total_weight = sum(float(criterion.get('weight', 0)) for criterion in criteria)
+    total_score = 0
+    return total_weight
+
 @traceable
 def improve_job_description(job_desc, ranking, client=None):
     prompt = f"""
@@ -415,13 +432,13 @@ def generate_candidate_questions(job_desc, resume_url, client=None, request_id=u
     logging.info(f"requestid :: {request_id} :: Generating candidate profile based questions - {resume_url}")
     try:
         logging.info(f"requestid :: {request_id} :: Extracting text from resume - {resume_url}")
-        extracted_data, images = extract_text_and_image_from_pdf(resume_url)
+        extracted_data = extract_text_and_image_from_pdf(resume_url)
         logging.info(f"requestid :: {request_id} :: Unifying resume format for - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles=constants.FONT_PRESETS, generate_pdf=False)
         
         if not unified_resume:
             logging.info(f"requestid :: {request_id} :: Failure to unify the resume format for {resume_url}. Defaulting to extracted resume text.")
-            unified_resume = extracted_data
+            unified_resume, resume_images = extracted_data
     except Exception as e:
         return {"request_id": request_id, "status": "failed", "message": "Exception occured while extracting data from resume - " + str(e)}
     
@@ -447,7 +464,7 @@ def generate_candidate_questions(job_desc, resume_url, client=None, request_id=u
     {{"questions": [list of strings]}}
 
     Only output valid JSON. 
-    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \\`\\`\\`json\\`\\`\\` wrapper.
     """
     logging.info(f"requestid :: {request_id} :: Calling AI for candidate profile based questions - {resume_url}")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
@@ -513,7 +530,7 @@ def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().h
     }}
 
     Only output valid JSON. 
-    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \`\`\`json\`\`\` wrapper.
+    You can only speak JSON. You can only output valid JSON. Strictly No explanation, no comments, no intro. No \\`\\`\\`json\\`\\`\\` wrapper.
     """
     logging.info(f"requestid :: {request_id} :: Calling AI to get candidate profile - {resume_url}")
     response, response_message = talk_to_ai(prompt, max_tokens=2000, client=client)
@@ -525,8 +542,10 @@ def extract_candidate_profile(resume_url, client=None, request_id=uuid.uuid4().h
         else:
             candidate_profile = json.loads(response)
 
-        if "Personal Information" in candidate_profile and "linkedin" in candidate_profile.get("Personal Information"):
-            linkedin_url = candidate_profile.get("Personal Information").get("linkedin")
+        personal_info = candidate_profile.get("Personal Information", {})
+        if "linkedin" in personal_info:
+            linkedin_url = personal_info.get("linkedin")
+            logging.info(f"requestid :: {request_id} :: Extracting LinkedIn profile - {linkedin_url}")
             logging.info(f"requestid :: {request_id} :: Extracting LinkedIn profile - {linkedin_url}")
             candidate_profile["linkedin"] = extract_linkedin_data(linkedin_url)
         candidate_profile["request_id"] = request_id
@@ -622,7 +641,7 @@ def assess_resume_quality(resume_images, client=None):
     ]
 
     scores = {}
-    total_weight = sum(criterion['weight'] for criterion in criteria)
+    total_weight = calculate_total_weight(criteria=criteria)
     total_score = 0
 
     for criterion in criteria:
@@ -654,11 +673,14 @@ def assess_resume_quality(resume_images, client=None):
         except Exception as e:
             logging.error(f"Error parsing score for criterion {criterion['name']}: {str(e)}")
             scores[criterion['key']] = 0
+            score = 0  # Ensure score is defined in case of exception
 
-        weighted_score = (score * criterion['weight']) / 100
-        total_score += weighted_score
+        weight = float(criterion.get('weight', 0) or 0)
+        if isinstance(score, (int, float)):  # Check if score is a number
+            weighted_score = (score * weight) / 100
+            total_score += weighted_score
 
-    overall_score = int((total_score / total_weight) * 100)  # Normalize to 0-100 scale
+    overall_score = int((total_score / total_weight) * 100) if total_weight != 0 else 0  # Normalize to 0-100 scale
 
     return overall_score
 
@@ -849,7 +871,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client
     ]
 
     scores = {}
-    total_weight = sum(criterion['weight'] for criterion in criteria)
+    total_weight = calculate_total_weight(criteria=criteria)
     #1 is the biggest redflag - they have high weightage but low score
     red_flags = {
         '1': [],
@@ -933,7 +955,8 @@ def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client
 
     # Normalize total score to 0 - 100 scale
     final_score = int((total_score / total_weight) * 100)
-
+    logging.info(f"requestid :: {request_id} :: Final score generated - {str(final_score)}")
+    logging.info(f"requestid :: {request_id} :: generating rubric score from final score")
     # Map the final_score to a 5-point scale
     if final_score <= 20:
         rubric_score = 1
@@ -948,7 +971,7 @@ def match_resume_to_job(resume_text, job_desc, resume_images, request_id, client
 
     logging.info(f"requestid :: {request_id} :: generating match reasons")
     match_reasons = generate_match_reasons(resume_text, job_requirements, client)
-    
+    logging.info(f"requestid :: {request_id} :: returning final match response with rubric score - {str(rubric_score)}")
     return {'score': rubric_score, 'match_reasons': match_reasons, 'red_flags': red_flags}
 
 @traceable
@@ -1018,194 +1041,194 @@ def unify_format(extracted_data, font_styles, generate_pdf=False):
     prompt = """
     Given the following raw text extracted from a resume, convert it into a unified format following these guidelines:
 
-Resume Object Model Definition (Markdown):
-===
-# Full legal name as it appears on official documents or as preferred professionally.        | First and last name; include middle name or initial if commonly used. | Use your professional or legal name.     |
-## Specific position or role aimed for, aligned with the job you're applying for to showcase career focus. | Concise title, typically 2-5 words. | Be specific to highlight your career goals. |
+    Resume Object Model Definition (Markdown):
+    ===
+    # Full legal name as it appears on official documents or as preferred professionally.        | First and last name; include middle name or initial if commonly used. | Use your professional or legal name.     |
+    ## Specific position or role aimed for, aligned with the job you're applying for to showcase career focus. | Concise title, typically 2-5 words. | Be specific to highlight your career goals. |
 
-Format: Email / Phone / Country / City
-| Field      | Description                                                        | Expected Length                | Guidelines                                         |
-|------------|--------------------------------------------------------------------|--------------------------------|----------------------------------------------------|
-| **Email**  | Professional email address (e.g., name@example.com).               | Standard email format          | Use a professional email; avoid unprofessional addresses. |
-| **Phone**  | Primary contact number, including country code if applicable.      | Include country code if applicable | Provide a reliable contact number.                  |
-| **Country**| Full country name of current residence.                            | Full country name              | Specify for relocation considerations.             |
-| **City**   | Full city name of current residence if available.                          | Full city name                 | Indicates proximity to job location.               |
+    Format: Email / Phone / Country / City
+    | Field      | Description                                                        | Expected Length                | Guidelines                                         |
+    |------------|--------------------------------------------------------------------|--------------------------------|----------------------------------------------------|
+    | **Email**  | Professional email address (e.g., name@example.com).               | Standard email format          | Use a professional email; avoid unprofessional addresses. |
+    | **Phone**  | Primary contact number, including country code if applicable.      | Include country code if applicable | Provide a reliable contact number.                  |
+    | **Country**| Full country name of current residence.                            | Full country name              | Specify for relocation considerations.             |
+    | **City**   | Full city name of current residence if available.                          | Full city name                 | Indicates proximity to job location.               |
 
-## Summary
+    ## Summary
 
-Format: plain text
+    Format: plain text
 
-| Field      | Description                                                                                                                | Expected Length                | Guidelines                           |
-|------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------|--------------------------------------|
-| **Summary**| Brief overview of qualifications and career goals, highlighting key skills, experiences, and achievements aligned with the desired job. | Mention quantifiable data. STAR format, approximately 5-6 sentences or bullet points | Keep it concise and impactful.       |
+    | Field      | Description                                                                                                                | Expected Length                | Guidelines                           |
+    |------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------|--------------------------------------|
+    | **Summary**| Brief overview of qualifications and career goals, highlighting key skills, experiences, and achievements aligned with the desired job. | Mention quantifiable data. STAR format, approximately 5-6 sentences or bullet points | Keep it concise and impactful.       |
 
-Format: _skill, skill, skill_   
+    Format: _skill, skill, skill_   
 
-| Field      | Description                                                                                                                | Expected Length                | Guidelines                           |
-|------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------|--------------------------------------|
-| **Skills**| List of skills (1-2 words each), separated by commas. | Mention technical skills, programming languages, frameworks, tools, and any other relevant skills. SCan the original data and find the skills. | 1-2 words each, 6-12 skills      |
+    | Field      | Description                                                                                                                | Expected Length                | Guidelines                           |
+    |------------|----------------------------------------------------------------------------------------------------------------------------|--------------------------------|--------------------------------------|
+    | **Skills**| List of skills (1-2 words each), separated by commas. | Mention technical skills, programming languages, frameworks, tools, and any other relevant skills. SCan the original data and find the skills. | 1-2 words each, 6-12 skills      |
 
 
-## Employment History
+    ## Employment History
 
-**Description**: Chronological list of past employment experiences (**one or more** entries).
-Format: Company / Job Title / Location
+    **Description**: Chronological list of past employment experiences (**one or more** entries).
+    Format: Company / Job Title / Location
 
-Start - End Date
+    Start - End Date
 
-Responsibilities (list or description)
+    Responsibilities (list or description)
 
-| Field            | Description                                                           | Expected Length        | Guidelines                                           |
-|------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
-| **Company**      | Name of employer; include brief descriptor if not well-known.         | Full official name     | Provide context for lesser-known companies.          |
-| **Job Title**    | Official title held; accurately reflects roles and responsibilities.  | Standard job title     | Use accurate and professional titles.                |
-| **Location**     | City, State/Province, Country.                                        | Full location          | Provides context about work environment.             |
-| **Start - End Date** | Employment period (e.g., June 2015 - Present).                       | Format as 'Month Year' | Ensure accuracy and consistency in formatting.       |
-| **Responsibilities** | Key duties, achievements, contributions (**one or more** bullet points). | ~3-6 bullet points     | Start with action verbs; quantify achievements when possible. |
+    | Field            | Description                                                           | Expected Length        | Guidelines                                           |
+    |------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
+    | **Company**      | Name of employer; include brief descriptor if not well-known.         | Full official name     | Provide context for lesser-known companies.          |
+    | **Job Title**    | Official title held; accurately reflects roles and responsibilities.  | Standard job title     | Use accurate and professional titles.                |
+    | **Location**     | City, State/Province, Country.                                        | Full location          | Provides context about work environment.             |
+    | **Start - End Date** | Employment period (e.g., June 2015 - Present).                       | Format as 'Month Year' | Ensure accuracy and consistency in formatting.       |
+    | **Responsibilities** | Key duties, achievements, contributions (**one or more** bullet points). | ~3-6 bullet points     | Start with action verbs; quantify achievements when possible. |
 
-## Education
+    ## Education
 
-**Description**: Academic qualifications and degrees obtained (**one or more** entries).
-Format: Institution / Degree / Location
+    **Description**: Academic qualifications and degrees obtained (**one or more** entries).
+    Format: Institution / Degree / Location
 
-Start - End Date
+    Start - End Date
 
-Description (if any)
+    Description (if any)
 
-| Field            | Description                                                           | Expected Length        | Guidelines                                           |
-|------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
-| **Institution**  | Name of educational institution; add location if not widely known.    | Full official name     | Provide context for lesser-known institutions.       |
-| **Degree**       | Degree or certification earned; specify field of study.               | Full degree title      | Highlight relevance to desired job.                  |
-| **Location**     | City, State/Province, Country.                                        | Full location          | Provides context about institution's setting.        |
-| **Start - End Date** | Education period (e.g., August 2004 - May 2008).                     | Format as 'Month Year' | Use consistent formatting.                           |
-| **Description**    | Additional information about the education (if any).                  | ~1-2 sentences         | Include if relevant; keep it concise.               |
+    | Field            | Description                                                           | Expected Length        | Guidelines                                           |
+    |------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
+    | **Institution**  | Name of educational institution; add location if not widely known.    | Full official name     | Provide context for lesser-known institutions.       |
+    | **Degree**       | Degree or certification earned; specify field of study.               | Full degree title      | Highlight relevance to desired job.                  |
+    | **Location**     | City, State/Province, Country.                                        | Full location          | Provides context about institution's setting.        |
+    | **Start - End Date** | Education period (e.g., August 2004 - May 2008).                     | Format as 'Month Year' | Use consistent formatting.                           |
+    | **Description**    | Additional information about the education (if any).                  | ~1-2 sentences         | Include if relevant; keep it concise.               |
 
-## Courses (Optional)
+    ## Courses (Optional)
 
-**Description**: Relevant courses, certifications, or training programs completed (**one or more** entries).
-Format: Course / Platform
+    **Description**: Relevant courses, certifications, or training programs completed (**one or more** entries).
+    Format: Course / Platform
 
-Start - End Date
+    Start - End Date
 
-Description (if any)    
+    Description (if any)    
 
-| Field            | Description                                                           | Expected Length        | Guidelines                                           |
-|------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
-| **Platform**     | Provider or platform name (e.g., Coursera, Udemy).                    | Organization name      | List reputable providers.                            |
-| **Title**        | Official course or certification name.                                | Full title             | Use exact title for verification.                    |
-| **Start - End Date** | Course period; can omit if not available.                           | Format as 'Month Year' | Include for context if possible.                     |
-| **Description**  | Additional information about the course (if any).                    | ~1-2 sentences         | Include if relevant; keep it concise.               |
+    | Field            | Description                                                           | Expected Length        | Guidelines                                           |
+    |------------------|-----------------------------------------------------------------------|------------------------|------------------------------------------------------|
+    | **Platform**     | Provider or platform name (e.g., Coursera, Udemy).                    | Organization name      | List reputable providers.                            |
+    | **Title**        | Official course or certification name.                                | Full title             | Use exact title for verification.                    |
+    | **Start - End Date** | Course period; can omit if not available.                           | Format as 'Month Year' | Include for context if possible.                     |
+    | **Description**  | Additional information about the course (if any).                    | ~1-2 sentences         | Include if relevant; keep it concise.               |
 
-## Languages
+    ## Languages
 
-**Description**: Languages known and proficiency levels (**one or more** entries).
-Format: Language / Proficiency
+    **Description**: Languages known and proficiency levels (**one or more** entries).
+    Format: Language / Proficiency
 
-| Field            | Description                                | Expected Length    | Guidelines                                   |
-|------------------|--------------------------------------------|--------------------|----------------------------------------------|
-| **Language**     | Name of the language (e.g., Spanish).      | Full language name | List languages enhancing your profile.       |
-| **Proficiency**  | Level of proficiency (e.g., Native, Fluent). | Standard levels    | Use recognized scales like CEFR.             |
+    | Field            | Description                                | Expected Length    | Guidelines                                   |
+    |------------------|--------------------------------------------|--------------------|----------------------------------------------|
+    | **Language**     | Name of the language (e.g., Spanish).      | Full language name | List languages enhancing your profile.       |
+    | **Proficiency**  | Level of proficiency (e.g., Native, Fluent). | Standard levels    | Use recognized scales like CEFR.             |
 
-## Links (Optional)
+    ## Links (Optional)
 
-**Description**: Online profiles, portfolios, or relevant links (**one or more** entries).
-Format: list of links
+    **Description**: Online profiles, portfolios, or relevant links (**one or more** entries).
+    Format: list of links
 
-- [Title](URL)
+    - [Title](URL)
 
-| Field      | Description                                          | Expected Length | Guidelines                                     |
-|------------|------------------------------------------------------|-----------------|------------------------------------------------|
-| **Title**  | Descriptive title (e.g., "My GitHub Profile").       | Short phrase    | Make it clear and professional.                |
-| **URL**    | Direct hyperlink to the resource.                    | Full URL        | Ensure links are active and professional.      |
+    | Field      | Description                                          | Expected Length | Guidelines                                     |
+    |------------|------------------------------------------------------|-----------------|------------------------------------------------|
+    | **Title**  | Descriptive title (e.g., "My GitHub Profile").       | Short phrase    | Make it clear and professional.                |
+    | **URL**    | Direct hyperlink to the resource.                    | Full URL        | Ensure links are active and professional.      |
 
-## Hobbies (Optional)
-Format: list of hobbies
+    ## Hobbies (Optional)
+    Format: list of hobbies
 
-| Field      | Description                          | Expected Length     | Guidelines                                       |
-|------------|--------------------------------------|---------------------|--------------------------------------------------|
-| **Hobbies**| Personal interests or activities.    | List of 3-5 hobbies | Showcase positive traits; avoid controversial topics. |
+    | Field      | Description                          | Expected Length     | Guidelines                                       |
+    |------------|--------------------------------------|---------------------|--------------------------------------------------|
+    | **Hobbies**| Personal interests or activities.    | List of 3-5 hobbies | Showcase positive traits; avoid controversial topics. |
 
-## Misc (Optional)
-Format: list of misc
+    ## Misc (Optional)
+    Format: list of misc
 
-| Field      | Description                          | Expected Length     | Guidelines                                       |
-|------------|--------------------------------------|---------------------|--------------------------------------------------|
-| **Misc**| Any other information.    | List of any other information | Showcase positive traits; avoid controversial topics. |
+    | Field      | Description                          | Expected Length     | Guidelines                                       |
+    |------------|--------------------------------------|---------------------|--------------------------------------------------|
+    | **Misc**| Any other information.    | List of any other information | Showcase positive traits; avoid controversial topics. |
 
-===
+    ===
 
-# General Guidelines:
+    # General Guidelines:
 
-- **Repeatable Sections**: Employment History, Education, Courses, Languages, and Links can contain **one or more** entries.
-- **Optional Sections**: Courses, Links, and Hobbies are **optional**. Omit sections not present in the original resume. **Do not add or invent information**.
-- **No Invented Information**: The parser must strictly use only the information provided in the original resume. Do not create, infer, or embellish any details.
+    - **Repeatable Sections**: Employment History, Education, Courses, Languages, and Links can contain **one or more** entries.
+    - **Optional Sections**: Courses, Links, and Hobbies are **optional**. Omit sections not present in the original resume. **Do not add or invent information**.
+    - **No Invented Information**: The parser must strictly use only the information provided in the original resume. Do not create, infer, or embellish any details.
 
-# Parser Rules:
+    # Parser Rules:
 
-To convert an original resume into the defined object model, a parser should follow these rules:
+    To convert an original resume into the defined object model, a parser should follow these rules:
 
-1. **Information Extraction**: Extract information exactly as it appears in the original document. Pay attention to details such as names, dates, job titles, and descriptions.
+    1. **Information Extraction**: Extract information exactly as it appears in the original document. Pay attention to details such as names, dates, job titles, and descriptions.
 
-2. **Section Mapping**: Map the content of the resume to the corresponding sections in the object model:
-   - **Name**: Extract from the top of the resume or personal details section.
-   - **Desired Job Title**: Look for a stated objective or title near the beginning.
-   - **Personal Details**: Extract email, phone, country, and city from the contact information.
-   - **Summary**: Use the professional summary or objective section.
-   - **Employment History**: Identify past job experiences, including company names, job titles, locations, dates, and responsibilities.
-   - **Education**: Extract academic qualifications with institution names, degrees, locations, and dates.
-   - **Courses**: Include any additional training or certifications listed.
-   - **Languages**: Note any languages and proficiency levels mentioned.
-   - **Links**: Extract URLs to professional profiles or portfolios.
-   - **Hobbies**: Include personal interests if provided.
-   - **Misc**: Include any other information if provided.
+    2. **Section Mapping**: Map the content of the resume to the corresponding sections in the object model:
+    - **Name**: Extract from the top of the resume or personal details section.
+    - **Desired Job Title**: Look for a stated objective or title near the beginning.
+    - **Personal Details**: Extract email, phone, country, and city from the contact information.
+    - **Summary**: Use the professional summary or objective section.
+    - **Employment History**: Identify past job experiences, including company names, job titles, locations, dates, and responsibilities.
+    - **Education**: Extract academic qualifications with institution names, degrees, locations, and dates.
+    - **Courses**: Include any additional training or certifications listed.
+    - **Languages**: Note any languages and proficiency levels mentioned.
+    - **Links**: Extract URLs to professional profiles or portfolios.
+    - **Hobbies**: Include personal interests if provided.
+    - **Misc**: Include any other information if provided.
 
-3. **Consistency and Formatting**:
-   - Ensure dates are formatted consistently throughout (e.g., 'Month Year').
-   - Use bullet points for lists where applicable.
-   - Maintain the order of entries as they appear in the original resume unless a different order enhances clarity.
+    3. **Consistency and Formatting**:
+    - Ensure dates are formatted consistently throughout (e.g., 'Month Year').
+    - Use bullet points for lists where applicable.
+    - Maintain the order of entries as they appear in the original resume unless a different order enhances clarity.
 
-4. **Accuracy**:
-   - Double-check all extracted information for correctness.
-   - Preserve the original wording, especially in descriptions and responsibilities, unless minor adjustments are needed for clarity.
+    4. **Accuracy**:
+    - Double-check all extracted information for correctness.
+    - Preserve the original wording, especially in descriptions and responsibilities, unless minor adjustments are needed for clarity.
 
-5. **Exclusion of Unavailable Information**:
-   - If a section or specific detail is not present in the original resume, omit that section or field in the output.
-   - Do not fill in default or placeholder values for missing information.
+    5. **Exclusion of Unavailable Information**:
+    - If a section or specific detail is not present in the original resume, omit that section or field in the output.
+    - Do not fill in default or placeholder values for missing information.
 
-6. **Avoiding Invention or Assumption**:
-   - Do not add any information that is not explicitly stated in the original document.
-   - Do not infer skills, responsibilities, or qualifications from context or general knowledge.
+    6. **Avoiding Invention or Assumption**:
+    - Do not add any information that is not explicitly stated in the original document.
+    - Do not infer skills, responsibilities, or qualifications from context or general knowledge.
 
-7. **Enhancements**:
-   - Minor rephrasing for grammar or clarity is acceptable but should not alter the original meaning.
-   - Do NOT fix typos or grammar mistakes.
-   - Quantify achievements where numbers are provided; do not estimate or create figures.
+    7. **Enhancements**:
+    - Minor rephrasing for grammar or clarity is acceptable but should not alter the original meaning.
+    - Do NOT fix typos or grammar mistakes.
+    - Quantify achievements where numbers are provided; do not estimate or create figures.
 
-8. **Professional Language**:
-   - Ensure all language used is professional and appropriate for a resume.
-   - Remove any informal language or slang that may have been present.
+    8. **Professional Language**:
+    - Ensure all language used is professional and appropriate for a resume.
+    - Remove any informal language or slang that may have been present.
 
-9. **Confidentiality**:
-   - Handle all personal data with confidentiality.
-   - Do not expose sensitive information in the output that was not intended for inclusion.
+    9. **Confidentiality**:
+    - Handle all personal data with confidentiality.
+    - Do not expose sensitive information in the output that was not intended for inclusion.
 
-10. **Validation**:
-    - Validate all URLs to ensure they are correctly formatted.
-    - Verify that contact information follows standard formats.
+    10. **Validation**:
+        - Validate all URLs to ensure they are correctly formatted.
+        - Verify that contact information follows standard formats.
 
-11. **Omit Empty Sections**:
-    - Omit sections that contain no information from the original resume.
+    11. **Omit Empty Sections**:
+        - Omit sections that contain no information from the original resume.
 
-    Raw Resume Text:
-~~~
-    {resume_text}
-~~~
+        Raw Resume Text:
+    ~~~
+        {resume_text}
+    ~~~
 
-    Please structure the resume information according to the provided format. Only include sections and details that are present in the original text. Do not invent or assume any information. No more then 4000 tokens.
-    No intro, no explanations, no comments. 
-    Use telegraphic english with no fluff. Keep all the information, do NOT invent data.
-    No ```` or ```yaml or ```json or ```json5 or ``` or --- or any other formatting. Just clean text.
-You can only speak in clean, concise, Markdown format.     
+        Please structure the resume information according to the provided format. Only include sections and details that are present in the original text. Do not invent or assume any information. No more then 4000 tokens.
+        No intro, no explanations, no comments. 
+        Use telegraphic english with no fluff. Keep all the information, do NOT invent data.
+        No ```` or ```yaml or ```json or ```json5 or ``` or --- or any other formatting. Just clean text.
+    You can only speak in clean, concise, Markdown format.     
     """
 
     unified_resume, unified_resume_message = talk_to_ai(prompt.format(resume_text=resume_text), max_tokens=4092)
@@ -1299,17 +1322,17 @@ def match_single_resume(job_desc, file, unified_resume, resume_images):
 @traceable
 def process_single_resume(job_desc, resume_url, font_styles=constants.FONT_PRESETS, generate_pdf=False, request_id=uuid.uuid4().hex):
     
-    logging.info(f"requestid :: {request_id} :: Matching resume with job | Resume - {resume_url} :: JD - {job_desc}")
+    logging.info(f"requestid :: {request_id} :: Matching resume with job | Resume - {resume_url}")
     try:
         logging.info(f"requestid :: {request_id} :: Extracting text from resume PDF - {resume_url}")
-        extracted_data, images = extract_text_and_image_from_pdf(resume_url)
+        extracted_data = extract_text_and_image_from_pdf(resume_url)
         logging.info(f"requestid :: {request_id} :: Unifying resume format for resume - {resume_url}")
         unified_resume, resume_images = unify_format(extracted_data, font_styles, generate_pdf)
         
         if not unified_resume:
             logging.info(f"requestid :: {request_id} :: Failure to unify the resume format for {resume_url}. Defaulting to extracted resume text.")
-            unified_resume = extracted_data
-        
+            unified_resume, resume_images = extracted_data
+        logging.info(f"requestid :: {request_id} :: Unifying resume format done for - {resume_url}")
         result = match_resume_to_job(unified_resume, job_desc, resume_images, request_id)
         result["request_id"] = request_id
         logging.info(f"requestid :: {request_id} :: Resume - Job match result for {resume_url} :: {result}")
